@@ -1,4 +1,4 @@
-Cake.js is 200kB without minification and compression, which is, frankly, huge.
+cake.js is 200kB without minification and compression, which is, frankly, huge.
 
 To bring the file size (and page load times) down, you should at least minify cake.js and preferably gzip it too. 
 
@@ -19,4 +19,4 @@ To minify, download [http://developer.yahoo.com/yui/compressor/ YUI compressor] 
 java -jar yuicompressor-*.jar cake.js -o cake_min.js
 }}}
 
-To GZIP, set up your mod_deflate equivalent ([http://httpd.apache.org/docs/2.0/mod/mod_deflate.html Apache 2], [http://wiki.codemongers.com/NginxHttpGzipModule Nginx].)
+To GZIP, set up your mod_deflate equivalent (instructions for [http://httpd.apache.org/docs/2.0/mod/mod_deflate.html Apache 2] and [http://wiki.codemongers.com/NginxHttpGzipModule Nginx])
