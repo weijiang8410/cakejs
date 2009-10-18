@@ -182,10 +182,10 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
 
   Examples of possible fill / stroke settings.
 {{{
-  null // use the previous
-  true      // use the previous but do fill / stroke
-  false     // use the previous but don't do fill / stroke
-  'none'    // use the previous but don't do fill / stroke
+  null      // use the inherited value and on/off setting
+  true      // turn on fill / stroke and use the inherited value
+  false     // turn off fill / stroke
+  'none'    // turn off fill / stroke
 
   'white'   // CSS color name
   '#fff'    // short CSS hex color
@@ -207,7 +207,7 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
   )
 }}}
   Features:
-    * <svg> width and height, viewBox clipping.
+    * svg-tag width and height, viewBox clipping.
     * Clipping (objectBoundingBox clipping too)
     * Paths, rectangles, ellipses, circles, lines, polylines and polygons
     * Simple untransformed text using HTML
@@ -219,7 +219,7 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
     * Parsing simple stylesheets (tag, class or id)
     * Images
     * Non-pixel units (cm, mm, in, pt, pc, em, ex, %)
-    * <use>-tags
+    * use-tags
     * preserveAspectRatio
     * Dynamic gradient sizes (objectBoundingBox, etc.)
     * Markers (though buggy)
@@ -234,4 +234,3 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
     * Filters
     * Animation
     * Dashed strokes
-
