@@ -227,7 +227,7 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
   Some of the several missing features:
     * Masks
     * Patterns
-    * viewBox clipping for elements other than <marker> and <svg>
+    * viewBox clipping for elements other than marker and svg
     * Text styling
     * tspan, tref, textPath, many things text
     * Fancy style rules (tag .class + #foo > bob#alice { ... })
