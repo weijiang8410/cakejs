@@ -1,0 +1,43 @@
+#summary Documentation portal for CAKE.
+
+= Introduction =
+
+I'll be pasting and linking the API documentation from cake.js here. And probably writing some sort of introductory tutorial.
+
+== Klass ==
+
+  Klass is used to do inheritance in a less cumbersome fashion than unaugmented JavaScript. To create a new class, you use `MyClass = Klass(superclass, class_body)`. 
+
+  How Klass does inheritance is by going through the parameters to Klass and merging their prototypes or the parameters themselves with the new constructor function's prototype. Finally, the constructor function's prototype is merged with the constructor
+  function itself, so that you can write `Shape.getArea.call(this)` instead of
+  `Shape.prototype.getArea.call(this)`.
+
+  The constructor function calls the classes `#initialize` with the constructor's arguments, so you can easily derive a class from another and customize its initialization procedure, as you can see from the example below.
+
+{{{
+  Shape = Klass({
+    getArea : function() {
+      raise('No area defined!')
+    }
+  })
+
+  Rectangle = Klass(Shape, {
+    initialize : function(x, y) {
+      this.x = x
+      this.y = y
+    },
+
+    getArea : function() {
+      return this.x * this.y
+    }
+  })
+
+  Square = Klass(Rectangle, {
+    initialize : function(s) {
+      Rectangle.initialize.call(this, s, s)
+    }
+  })
+
+  new Square(5).getArea()
+  //=> 25
+}}}
