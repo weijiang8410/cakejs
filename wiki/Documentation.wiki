@@ -75,10 +75,9 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
 
 == Canvas ==
 
-  Canvas is the canvas manager class.
-  It takes care of updating and drawing its childNodes on a canvas element.
+  Canvas is the canvas manager class. It takes a canvas element and handles updating its childNodes and drawing them onto the canvas.
 
-  The normal way to use CAKE is by creating a Canvas from a canvas element and attaching the scene to the Canvas.
+  The normal way to use CAKE is to create a Canvas for a canvas element and attaching the scene to the Canvas object. 
 
   An example with a rotating rectangle:
 {{{
@@ -96,7 +95,7 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
     document.body.appendChild(c)
 }}}
 
-  To use the canvas as a manually updated image:
+  To use a Canvas as a manually updated image you can set `redrawOnlyWhenChanged` to true. When you want the Canvas to be redrawn, set its `changed` property to true:
 {{{
     var canvas = new Canvas(E.canvas(200,40), {
       isPlaying : false,
@@ -116,7 +115,7 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
     canvas.append(c)
 }}}
 
-  Or by using raw onFrame-calls:
+  You can also use `onFrame`-calls to make the Canvas redraw itself:
 {{{
     var canvas = new Canvas(E.canvas(200,40), {
       isPlaying : false,
@@ -132,7 +131,7 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
     canvas.onFrame()
 }}}
 
-  Which is also the recommended way to use a canvas inside another canvas:
+  Using `onFrame` is also the recommended way to use a Canvas inside another Canvas:
 {{{
     var canvas = new Canvas(E.canvas(200,40), {
       isPlaying : false
