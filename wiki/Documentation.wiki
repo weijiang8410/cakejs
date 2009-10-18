@@ -79,15 +79,17 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
 
   The normal way to use CAKE is to create a Canvas for a canvas element and attaching the scene to the Canvas object. 
 
+  You can set the Canvas's background color by setting the `fill` property to a color, Pattern or Gradient. If you want to preserve the previous frame image, set the `clear` property to false. As an example, preserving the previous frame can be used for doing a motion trail effect by using a transparent background so that it shows the previous frames beneath the current one.
+
   An example with a rotating rectangle:
 {{{
     var c = E.canvas(500, 500)
     var canvas = new Canvas(c)
+    canvas.fill = [230,235,240,1]
     var rect = new Rectangle(100, 100)
     rect.x = 250
     rect.y = 250
-    rect.fill = true
-    rect.fillStyle = 'green'
+    rect.fill = 'green'
     rect.addFrameListener(function(t) {
       this.rotation = ((t / 3000) % 1) * Math.PI * 2
     })
@@ -104,8 +106,7 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
     var c = new Circle(20)
     c.x = 100
     c.y = 20
-    c.fill = true
-    c.fillStyle = 'red'
+    c.fill = 'red'
     c.addFrameListener(function(t) {
       if (this.root.absoluteMouseX != null) {
         this.x = this.root.mouseX // relative to canvas surface
@@ -119,14 +120,12 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
 {{{
     var canvas = new Canvas(E.canvas(200,40), {
       isPlaying : false,
-      fill : true,
-      fillStyle : 'white'
+      fill : 'white'
     })
     var c = new Circle(20)
     c.x = 100
     c.y = 20
-    c.fill = true
-    c.fillStyle = 'red'
+    c.fill = 'red'
     canvas.append(c)
     canvas.onFrame()
 }}}
@@ -138,7 +137,7 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
     })
     var c = new Circle(20, {
       x: 100, y: 20,
-      fill: true, fillStyle: 'red'
+      fill: 'red'
     })
     canvas.append(c)
 
