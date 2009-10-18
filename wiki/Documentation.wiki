@@ -171,8 +171,8 @@ If you have way too much free time on your hands, you could hypothetically write
 
 == Other pre-defined canvas node types ==
 
-  * [AudioNode is a CanvasNode used to play a sound.
-  * [ElementNode is a CanvasNode that wraps an HTML element.
+  * [AudioNode] is a CanvasNode used to play a sound.
+  * [ElementNode] is a CanvasNode that wraps an HTML element.
   * [Line] is a line drawn from x1,y1 to x2,y2. Lines are stroked by default.
   * [Circle] is used for creating circular paths.
   * [Ellipse] is used for drawing ellipses. 
