@@ -177,8 +177,7 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
   * A value of `null` uses the inherited setting. `false` and `'none'` turn off the fill or stroke.
   * Colors can be given as a CSS color string or an array of color components.
   * Gradient is a linear or radial color gradient that can be used as a stroke or fill.
-  * Pattern is a possibly repeating image that can be used as a stroke or
-  fill.
+  * Pattern is a possibly repeating image that can be used as a stroke or fill.
 
   Examples of possible fill / stroke settings.
 {{{
