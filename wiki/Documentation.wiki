@@ -8,7 +8,7 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
 
 The easiest way is to use [http://code.google.com/chrome/chromeframe Google Chrome Frame]. See an example in this [http://cs.helsinki.fi/u/ilmarihe/canvas_animation_demo/mozcampeu09.html canvas animation demo].
 
-Add &lt;meta http-equiv="X-UA-Compatible" content="chrome=1"> to the head of your document and the following snippet to your page.
+Add `<meta http-equiv="X-UA-Compatible" content="chrome=1">` to the head of your document and the following snippet to your page.
 
 {{{
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/chrome-frame/1/CFInstall.min.js"> </script> 
