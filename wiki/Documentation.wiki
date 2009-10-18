@@ -41,3 +41,113 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
   new Square(5).getArea()
   //=> 25
 }}}
+
+== CanvasNode == 
+
+  CanvasNode is the base CAKE scenegraph node. All the other scenegraph nodes
+  derive from it. A plain CanvasNode does no drawing, but it can be used for
+  grouping other nodes and setting up the group's drawing state.
+
+{{{
+  var scene = new CanvasNode({x: 10, y: 10})
+}}}
+
+  The usual way to use CanvasNodes is to append them to a Canvas object:
+
+{{{
+    var scene = new CanvasNode()
+    scene.append(new Rectangle(40, 40, {fill: true}))
+    var elem = E.canvas(400, 400)
+    var canvas = new Canvas(elem)
+    canvas.append(scene)
+}}}
+
+  You can also use CanvasNodes to draw directly to a canvas element:
+
+{{{
+    var scene = new CanvasNode()
+    scene.append(new Circle(40, {x:200, y:200, stroke: true}))
+    var elem = E.canvas(400, 400)
+    scene.handleDraw(elem.getContext('2d'))
+}}}
+
+  CanvasNode derives from Transformable and Animatable.
+
+== Canvas ==
+
+  Canvas is the canvas manager class.
+  It takes care of updating and drawing its childNodes on a canvas element.
+
+  The normal way to use CAKE is by creating a Canvas from a canvas element and attaching the scene to the Canvas.
+
+  An example with a rotating rectangle:
+{{{
+    var c = E.canvas(500, 500)
+    var canvas = new Canvas(c)
+    var rect = new Rectangle(100, 100)
+    rect.x = 250
+    rect.y = 250
+    rect.fill = true
+    rect.fillStyle = 'green'
+    rect.addFrameListener(function(t) {
+      this.rotation = ((t / 3000) % 1) * Math.PI * 2
+    })
+    canvas.append(rect)
+    document.body.appendChild(c)
+}}}
+
+  To use the canvas as a manually updated image:
+{{{
+    var canvas = new Canvas(E.canvas(200,40), {
+      isPlaying : false,
+      redrawOnlyWhenChanged : true
+    })
+    var c = new Circle(20)
+    c.x = 100
+    c.y = 20
+    c.fill = true
+    c.fillStyle = 'red'
+    c.addFrameListener(function(t) {
+      if (this.root.absoluteMouseX != null) {
+        this.x = this.root.mouseX // relative to canvas surface
+        this.root.changed = true
+      }
+    })
+    canvas.append(c)
+}}}
+
+  Or by using raw onFrame-calls:
+{{{
+    var canvas = new Canvas(E.canvas(200,40), {
+      isPlaying : false,
+      fill : true,
+      fillStyle : 'white'
+    })
+    var c = new Circle(20)
+    c.x = 100
+    c.y = 20
+    c.fill = true
+    c.fillStyle = 'red'
+    canvas.append(c)
+    canvas.onFrame()
+}}}
+
+  Which is also the recommended way to use a canvas inside another canvas:
+{{{
+    var canvas = new Canvas(E.canvas(200,40), {
+      isPlaying : false
+    })
+    var c = new Circle(20, {
+      x: 100, y: 20,
+      fill: true, fillStyle: 'red'
+    })
+    canvas.append(c)
+
+    var topCanvas = new Canvas(E.canvas(500, 500))
+    var canvasImage = new ImageNode(canvas.canvas, {x: 250, y: 250})
+    topCanvas.append(canvasImage)
+    canvasImage.addFrameListener(function(t) {
+      this.rotation = (t / 3000 % 1) * Math.PI * 2
+      canvas.onFrame(t)
+    })
+}}}
