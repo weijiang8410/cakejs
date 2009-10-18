@@ -22,7 +22,7 @@ If you have way too much free time on your hands, you could hypothetically write
 
 == Klass ==
 
-  Klass is used to do inheritance in a less cumbersome fashion than unaugmented JavaScript. To create a new class, you use `MyClass = Klass(superclass, class_body)`. 
+  [Klass] is used to do inheritance in a less cumbersome fashion than unaugmented JavaScript. To create a new class, you use `MyClass = Klass(superclass, class_body)`. 
 
   How Klass does inheritance is by going through the parameters to Klass and merging their prototypes (or the parameters themselves) with the new constructor's prototype. Finally, the constructor's prototype is merged with the constructor itself, so that you can write `Shape.getArea.call(this)` instead of `Shape.prototype.getArea.call(this)`.
 
@@ -59,7 +59,7 @@ If you have way too much free time on your hands, you could hypothetically write
 
 == CanvasNode == 
 
-  CanvasNode is the base CAKE scenegraph node. All the other scenegraph nodes
+  [CanvasNode] is the base CAKE scenegraph node. All the other scenegraph nodes
   derive from it. A plain CanvasNode does no drawing, but it can be used for
   grouping other nodes and setting up the group's drawing state.
 
@@ -92,7 +92,7 @@ If you have way too much free time on your hands, you could hypothetically write
 
 == Canvas ==
 
-  Canvas is the canvas manager class. It takes a canvas element and handles updating its childNodes and drawing them onto the canvas.
+  [Canvas] is the canvas manager class. It takes a canvas element and handles updating its childNodes and drawing them onto the canvas.
 
   The normal way to use CAKE is to create a Canvas for a canvas element and attaching the scene to the Canvas object. 
 
@@ -171,26 +171,26 @@ If you have way too much free time on your hands, you could hypothetically write
 
 == Other pre-defined canvas node types ==
 
-  * AudioNode is a CanvasNode used to play a sound.
-  * ElementNode is a CanvasNode that wraps an HTML element.
-  * Line is a line drawn from x1,y1 to x2,y2. Lines are stroked by default.
-  * Circle is used for creating circular paths.
-  * Ellipse is used for drawing ellipses. 
-  * Spiral draws a strokeable spiral path.
-  * Rectangle is used for creating rectangular paths.
-  * Polygon is used for creating paths consisting of straight line segments.
-  * CatmullRomSpline draws a Catmull-Rom spline, with optional looping and path closing. Handy for motion paths.
-  * Path is used for creating custom paths. The Path segments are used as `[methodName, arguments]`-calls on the canvas drawing context.
-  * ImageNode is used for drawing images.
-  * TextNode is used for drawing text on a canvas.
+  * [AudioNode is a CanvasNode used to play a sound.
+  * [ElementNode is a CanvasNode that wraps an HTML element.
+  * [Line] is a line drawn from x1,y1 to x2,y2. Lines are stroked by default.
+  * [Circle] is used for creating circular paths.
+  * [Ellipse] is used for drawing ellipses. 
+  * [Spiral] draws a strokeable spiral path.
+  * [Rectangle] is used for creating rectangular paths.
+  * [Polygon] is used for creating paths consisting of straight line segments.
+  * [CatmullRomSpline] draws a Catmull-Rom spline, with optional looping and path closing. Handy for motion paths.
+  * [Path] is used for creating custom paths. The Path segments are used as `[methodName, arguments]`-calls on the canvas drawing context.
+  * [ImageNode] is used for drawing images.
+  * [TextNode] is used for drawing text on a canvas.
 
 
 == Fills and strokes == 
 
   * A value of `null` uses the inherited setting. `false` and `'none'` turn off the fill or stroke.
   * Colors can be given as a CSS color string or an array of color components.
-  * Gradient is a linear or radial color gradient that can be used as a stroke or fill.
-  * Pattern is a possibly repeating image that can be used as a stroke or fill.
+  * [Gradient] is a linear or radial color gradient that can be used as a stroke or fill.
+  * [Pattern] is a possibly repeating image that can be used as a stroke or fill.
 
   Examples of possible fill / stroke settings.
 {{{
@@ -211,7 +211,7 @@ If you have way too much free time on your hands, you could hypothetically write
 
 == SVGParser ==
 
-  SVGParser is an SVG parser for simple documents. Converts SVG DOM to CAKE scenegraph.
+  [SVGParser] is an [http://www.w3.org/TR/SVG/ SVG] parser for simple documents. Converts SVG DOM to CAKE scene graph.
   SVGParser has an emphasis on importing graphical images, not on the "HTML-killer" features of SVG.
 {{{
   var svgNode = SVGParser.parse(
@@ -235,6 +235,7 @@ If you have way too much free time on your hands, you could hypothetically write
     * preserveAspectRatio
     * Dynamic gradient sizes (objectBoundingBox, etc.)
     * Markers (though buggy)
+    * SMIL animation (incomplete, property model is wrong)
 
   Some of the several missing features:
     * Masks
@@ -244,5 +245,4 @@ If you have way too much free time on your hands, you could hypothetically write
     * tspan, tref, textPath, many things text
     * Fancy style rules (tag .class + #foo > bob#alice { ... })
     * Filters
-    * Animation
     * Dashed strokes
