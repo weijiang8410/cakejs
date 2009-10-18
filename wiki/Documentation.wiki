@@ -24,11 +24,9 @@ If you have way too much free time on your hands, you could hypothetically write
 
   Klass is used to do inheritance in a less cumbersome fashion than unaugmented JavaScript. To create a new class, you use `MyClass = Klass(superclass, class_body)`. 
 
-  How Klass does inheritance is by going through the parameters to Klass and merging their prototypes or the parameters themselves with the new constructor function's prototype. Finally, the constructor function's prototype is merged with the constructor
-  function itself, so that you can write `Shape.getArea.call(this)` instead of
-  `Shape.prototype.getArea.call(this)`.
+  How Klass does inheritance is by going through the parameters to Klass and merging their prototypes (or the parameters themselves) with the new constructor's prototype. Finally, the constructor's prototype is merged with the constructor itself, so that you can write `Shape.getArea.call(this)` instead of `Shape.prototype.getArea.call(this)`.
 
-  The constructor function calls the classes `#initialize` with the constructor's arguments, so you can easily derive a class from another and customize its initialization procedure, as you can see from the example below.
+  The constructor calls the class's `#initialize` with the constructor's arguments, so you can easily derive a class from another and customize its initialization procedure, as you can see from the example below.
 
 {{{
   Shape = Klass({
