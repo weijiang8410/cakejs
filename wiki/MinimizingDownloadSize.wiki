@@ -21,4 +21,4 @@ To minify, download [http://developer.yahoo.com/yui/compressor/ YUI compressor] 
 java -jar yuicompressor-*.jar cake.js -o cake_min.js
 }}}
 
-To GZIP, set up your mod_deflate equivalent (instructions for [http://httpd.apache.org/docs/2.0/mod/mod_deflate.html Apache 2] and [http://wiki.codemongers.com/NginxHttpGzipModule Nginx])
+To GZIP, set up your mod_deflate equivalent (instructions for [http://httpd.apache.org/docs/2.0/mod/mod_deflate.html Apache 2] and [http://wiki.nginx.org/NginxHttpGzipModule Nginx])
