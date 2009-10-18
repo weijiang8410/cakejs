@@ -14,6 +14,8 @@ Download times on a 384kbps 3G connection:
  * cake_min.js: around 2.5 seconds
  * cake_min.js.gz: around 0.6 seconds
 
+If you also strip out the SVGParser at the end of cake.js, the minified CAKE will be 86 kB in size, and 23 kB gzipped.
+
 To minify, download [http://developer.yahoo.com/yui/compressor/ YUI compressor] and do the following:
 {{{
 java -jar yuicompressor-*.jar cake.js -o cake_min.js
