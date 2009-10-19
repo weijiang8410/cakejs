@@ -20,7 +20,7 @@ If you have way too much free time on your hands, you could hypothetically write
 
 = Main classes =
 
-== Klass ==
+== How CAKE's inheritance model works: the Klass object==
 
   [Klass] is used to do inheritance in a less cumbersome fashion than unaugmented JavaScript. To create a new class, you use `MyClass = Klass(superclass, class_body)`. 
 
@@ -56,120 +56,8 @@ If you have way too much free time on your hands, you could hypothetically write
   //=> 25
 }}}
 
-
-== CanvasNode == 
-
-  [CanvasNode] is the base CAKE scenegraph node. All the other scenegraph nodes
-  derive from it. A plain CanvasNode does no drawing, but it can be used for
-  grouping other nodes and setting up the group's drawing state.
-
-{{{
-  var scene = new CanvasNode({x: 10, y: 10})
-}}}
-
-  The usual way to use CanvasNodes is to append them to a Canvas object:
-
-{{{
-    var scene = new CanvasNode()
-    scene.append(new Rectangle(40, 40, {fill: true}))
-    var elem = E.canvas(400, 400)
-    var canvas = new Canvas(elem)
-    canvas.append(scene)
-}}}
-
-  You can also use CanvasNodes to draw directly to an augmented canvas context:
-
-{{{
-    var scene = new CanvasNode()
-    scene.append(new Circle(40, {x:200, y:200, stroke: true}))
-    var elem = E.canvas(400, 400)
-    var ctx = CanvasSupport.getContext(elem)
-    scene.handleDraw(ctx)
-}}}
-
-  CanvasNode derives from Transformable and Animatable.
-
-
-== Canvas ==
-
-  [Canvas] is the canvas manager class. It takes a canvas element and handles updating its childNodes and drawing them onto the canvas.
-
-  The normal way to use CAKE is to create a Canvas for a canvas element and attaching the scene to the Canvas object. 
-
-  You can set the Canvas's background color by setting the `fill` property to a color, Pattern or Gradient. If you want to preserve the previous frame image, set the `clear` property to false. As an example, preserving the previous frame can be used for doing a motion trail effect by using a transparent background so that it shows the previous frames beneath the current one.
-
-  An example with a rotating rectangle:
-{{{
-    var c = E.canvas(500, 500)
-    var canvas = new Canvas(c)
-    canvas.fill = [255,255,255,0.8]
-    canvas.clear = false
-    var rect = new Rectangle(100, 100)
-    rect.x = 250
-    rect.y = 250
-    rect.fill = 'green'
-    rect.addFrameListener(function(t) {
-      this.rotation = ((t / 3000) % 1) * Math.PI * 2
-    })
-    canvas.append(rect)
-    document.body.appendChild(c)
-}}}
-
-  To use a Canvas as a manually updated image you can set `redrawOnlyWhenChanged` to true. When you want the Canvas to be redrawn, set its `changed` property to true:
-{{{
-    var canvas = new Canvas(E.canvas(200,40), {
-      isPlaying : false,
-      redrawOnlyWhenChanged : true
-    })
-    var c = new Circle(20)
-    c.x = 100
-    c.y = 20
-    c.fill = 'red'
-    c.addFrameListener(function(t) {
-      if (this.root.absoluteMouseX != null) {
-        this.x = this.root.mouseX // relative to canvas surface
-        this.root.changed = true
-      }
-    })
-    canvas.append(c)
-}}}
-
-  You can also use `onFrame`-calls to make the Canvas redraw itself:
-{{{
-    var canvas = new Canvas(E.canvas(200,40), {
-      isPlaying : false,
-      fill : 'white'
-    })
-    var c = new Circle(20)
-    c.x = 100
-    c.y = 20
-    c.fill = 'red'
-    canvas.append(c)
-    canvas.onFrame()
-}}}
-
-  Using `onFrame` is also the recommended way to use a Canvas inside another Canvas:
-{{{
-    var canvas = new Canvas(E.canvas(200,40), {
-      isPlaying : false
-    })
-    var c = new Circle(20, {
-      x: 100, y: 20,
-      fill: 'red'
-    })
-    canvas.append(c)
-
-    var topCanvas = new Canvas(E.canvas(500, 500))
-    var canvasImage = new ImageNode(canvas.canvas, {x: 250, y: 250})
-    topCanvas.append(canvasImage)
-    canvasImage.addFrameListener(function(t) {
-      this.rotation = (t / 3000 % 1) * Math.PI * 2
-      canvas.onFrame(t)
-    })
-}}}
-
-
-== Other pre-defined canvas node types ==
+  * [Canvas] is the canvas manager class. You need to wrap a canvas element in one to use CAKE.
+  * CanvasNode is the base class for the CAKE scene graph. All the other scene graph nodes derive from it.
 
   * [AudioNode] is a CanvasNode used to play a sound.
   * [ElementNode] is a CanvasNode that wraps an HTML element.
