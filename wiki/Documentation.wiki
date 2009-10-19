@@ -6,7 +6,7 @@ I'll be pasting and linking the API documentation from cake.js here. And probabl
 
 = What CAKE code looks like =
 
-  An example with a rotating rectangle:
+An example with a rotating rectangle:
 {{{
     var c = E.canvas(500, 500)          // create a new canvas element
     var canvas = new Canvas(c)          // create a CAKE [Canvas] for the element
