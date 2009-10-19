@@ -4,6 +4,27 @@
 
 I'll be pasting and linking the API documentation from cake.js here. And probably writing some sort of introductory tutorial.
 
+= What CAKE code looks like =
+
+  An example with a rotating rectangle:
+{{{
+    var c = E.canvas(500, 500)          // create a new canvas element
+    var canvas = new Canvas(c)          // create a CAKE [Canvas] for the element
+    canvas.fill = [255,255,255,0.8]     // set the Canvas background to 0.8 opacity white
+    canvas.clear = false                // show the previous frame through
+    var rect = new Rectangle(100, 100)  // create a CAKE [Rectangle] object
+    rect.x = 250                        // move the Rectangle to (250, 250)
+    rect.y = 250
+    rect.fill = 'green'                 // fill the Rectangle with green color
+    // rotate the Rectangle on every frame
+    rect.addFrameListener(function(t) {
+      this.rotation = ((t / 3000) % 1) * Math.PI * 2 
+    })
+    canvas.append(rect)                 // append the Rectangle to the Canvas
+    document.body.appendChild(c)        // append the canvas element to document body
+}}}
+
+
 = Using CAKE with Internet Explorer =
 
 The easiest way is to use [http://code.google.com/chrome/chromeframe Google Chrome Frame]. See an example in this [http://cs.helsinki.fi/u/ilmarihe/canvas_animation_demo/mozcampeu09.html canvas animation demo].
@@ -16,9 +37,7 @@ Add `<meta http-equiv="X-UA-Compatible" content="chrome=1">` to the head of your
 <script>CFInstall.check({ node: "placeholder" });</script> 
 }}}
 
-If you have way too much free time on your hands, you could hypothetically write a SilverLight implementation of the Canvas API. ExplorerCanvas doesn't work at all well for CAKE. The VML renderer chokes on the animations and will likely make IE hang or crash or both.
-
-= Main classes =
+If you have way too much free time on your hands, you could hypothetically write a SilverLight implementation of the Canvas API. ExplorerCanvas doesn't work at all well for CAKE. Last I checked, ExplorerCanvas's VML renderer chokes on the animations and will likely make IE hang or crash or both.
 
 = How CAKE's inheritance model works: the Klass object =
 
@@ -56,8 +75,14 @@ If you have way too much free time on your hands, you could hypothetically write
   //=> 25
 }}}
 
+
+= Main classes =
+
   * [Canvas] is the canvas manager class. You need to wrap a canvas element in one to use CAKE.
   * CanvasNode is the base class for the CAKE scene graph. All the other scene graph nodes derive from it.
+
+
+== Scene graph node classes ==
 
   * [AudioNode] is a CanvasNode used to play a sound.
   * [ElementNode] is a CanvasNode that wraps an HTML element.
