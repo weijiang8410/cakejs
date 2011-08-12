@@ -36,6 +36,9 @@ window.requestAnimFrame = (function(){
               };
     })();
  
+
+Array.prototype = new Array();
+
 /**
   Delete the first instance of obj from the array.
 
@@ -54,7 +57,7 @@ Array.prototype.deleteFirst = function(obj) {
   return false
 }
 
-Array.prototype.stableSort = function(cmp) {
+Array.prototype.stableSort = function(cmp) { 
   // hack to work around Chrome's qsort
   for(var i=0; i<this.length; i++) {
     this[i].__arrayPos = i;
@@ -637,6 +640,12 @@ Mouse.getRelativeCoords = function(element, event) {
   var osl = 0
   var ost = 0
   var el = element
+  if(event.offsetX !== undefined) {
+    xy.x = event.offsetX
+    xy.y = event.offsetY
+    return xy
+  }
+  
   while (el) {
     osl += el.offsetLeft
     ost += el.offsetTop
@@ -732,7 +741,6 @@ Klass = function() {
 
 
 Curves = {
-
   angularDistance : function(a, b) {
     var pi2 = Math.PI*2
     var d = (b - a) % pi2
@@ -1724,7 +1732,7 @@ CanvasSupport = {
     @type String
     */
   getTextBackend : function() {
-    if (this.textBackend == null)
+    if (!this.textBackend)
       this.textBackend = this.detectTextBackend()
     return this.textBackend
   },
@@ -2017,11 +2025,27 @@ Transformable = Klass({
     // update the node's transformation matrix
     if (this.needMatrixUpdate || !this.currentMatrix) {
       if (!this.currentMatrix) this.currentMatrix = [1,0,0,1,0,0]
-      if (this.parent)
-        this.__copyMatrix(this.parent.currentMatrix)
-      else
-        this.__identityMatrix()
-      if (atm) this.__setMatrixMatrix(this.absoluteMatrix)
+      if (!this.relativeMatrix) this.relativeMatrix = [1,0,0,1,0,0]
+      if (!this.previousMatrix) this.previousMatrix = []
+      
+      this.previousBoundingBox = this.lastBoundingBox
+      
+      var p = this.previousMatrix
+	  var c = this.currentMatrix
+	  p[0] = c[0]
+	  p[1] = c[1]
+	  p[2] = c[2]
+	  p[3] = c[3]
+	  p[4] = c[4]
+	  p[5] = c[5]
+        
+      //swap temporarily
+      var cm = this.currentMatrix
+      this.currentMatrix = this.relativeMatrix
+        
+      this.__identityMatrix()
+        
+      //if (atm) this.__setMatrixMatrix(this.absoluteMatrix)
       if (xy) this.__translateMatrix(this.x, this.y)
       if (rot) this.__rotateMatrix(this.rotation)
       if (skX) this.__skewXMatrix(this.skewX)
@@ -2034,6 +2058,20 @@ Transformable = Klass({
           this['__'+tl[0]+'Matrix'](tl[1])
         }
       }
+      
+      //swap back
+      this.currentMatrix = cm
+      
+      if (this.parent)
+        this.__copyMatrix(this.parent.currentMatrix)
+      else
+        this.__identityMatrix()
+      
+      if(atm)
+        this.__copyMatrix(atm)
+        
+      this.__matrixMatrix(this.relativeMatrix)
+
       this.needMatrixUpdate = false
     }
 
@@ -2054,7 +2092,7 @@ Transformable = Klass({
 
 
   __setMatrixMatrix : function(matrix) {
-    if (!this.previousMatrix) this.previousMatrix = []
+    /*if (!this.previousMatrix) this.previousMatrix = []
     var p = this.previousMatrix
     var c = this.currentMatrix
     p[0] = c[0]
@@ -2062,7 +2100,7 @@ Transformable = Klass({
     p[2] = c[2]
     p[3] = c[3]
     p[4] = c[4]
-    p[5] = c[5]
+    p[5] = c[5]*/
     p = this.currentMatrix
     c = matrix
     p[0] = c[0]
@@ -2303,7 +2341,8 @@ Timeline = Klass({
 })
 
 
-Animatable = Klass({
+//Animatable = Klass({
+var Animatable = {  
   tweenFunctions : {
     linear : function(v) { return v },
 
@@ -2491,6 +2530,8 @@ Animatable = Klass({
             pos = pos % 1
           }
         }
+        
+        !ani.callback || ani.callback()
       } else if (ani.repeat && ani.repeat !== true && ani.repeat <= pos) {
         shouldRemove = true
         pos = ani.repeat
@@ -2544,7 +2585,8 @@ Animatable = Klass({
       repeat : config.repeat,
       additive : config.additive,
       accumulate : config.accumulate,
-      pingpong : config.pingpong
+      pingpong : config.pingpong,
+      callback : config.callback
     }
     this.animators.push(ani)
     return ani
@@ -2659,7 +2701,8 @@ Animatable = Klass({
     this.addFrameListener(animator)
     return animator
   }
-})
+}
+Animatable = Klass(Animatable);
 Animatable.uid = 0
 
 
@@ -2687,7 +2730,8 @@ Animatable.uid = 0
     scene.handleDraw(elem.getContext('2d'))
 
   */
-CanvasNode = Klass(Animatable, Transformable, {
+//CanvasNode = Klass(Animatable, Transformable, {
+var CanvasNode = {
   OBJECTBOUNDINGBOX : 'objectBoundingBox',
 
   // whether to draw the node and its childNodes or not
@@ -2731,6 +2775,8 @@ CanvasNode = Klass(Animatable, Transformable, {
 
   // scale factor: number for uniform scaling, [x,y] for dimension-wise
   scale : 1,
+  
+  id : null,
 
   // Rotation of the node, in radians.
   //
@@ -2772,6 +2818,8 @@ CanvasNode = Klass(Animatable, Transformable, {
   //   new Gradient(...)
   //   new Pattern(myImage, 'no-repeat')
   fill : null,
+  
+  nDraws : 0,
 
   // strokeStyle for the node and its descendants
   // Possibilities:
@@ -2852,6 +2900,7 @@ CanvasNode = Klass(Animatable, Transformable, {
   cursor : null,
 
   changed : true,
+  bmpCache : null,
 
   tagName : 'g',
 
@@ -2866,7 +2915,7 @@ CanvasNode = Klass(Animatable, Transformable, {
       return this.parentNode.childNodes[this.parentNode.childNodes.indexOf(this)-1]
     return null
   },
-
+  
   /**
     Initialize the CanvasNode and merge an optional config hash.
     */
@@ -2977,6 +3026,8 @@ CanvasNode = Klass(Animatable, Transformable, {
   remove : function(obj) {
     var a = arguments
     for (var i=0; i<a.length; i++) {
+      if(this.previousBoundingBox && this.root)
+        this.root.dirtyRegions.push(this.previousBoundingBox)
       this.childNodes.deleteFirst(a[i])
       delete a[i].parent
       delete a[i].parentNode
@@ -3064,6 +3115,7 @@ CanvasNode = Klass(Animatable, Transformable, {
 
   dispatchEvent : function(event) {
     var type = event.type
+    
     if (!event.canvasTarget) {
       if (type.search(/^(key|text)/i) == 0) {
         event.canvasTarget = this.root.focused || this.root.target
@@ -3134,15 +3186,60 @@ CanvasNode = Klass(Animatable, Transformable, {
     */
   handleUpdate : function(time, timeDelta) {
     this.update(time, timeDelta)
-    this.willBeDrawn = (!this.parent || this.parent.willBeDrawn) && (this.display ? this.display != 'none' : this.visible)
+    this.willBeDrawn = (!this.parent || this.parent.willBeDrawn) 
+        && (this.display ? this.display != 'none' : this.visible)
     for(var i=0; i<this.childNodes.length; i++)
       this.childNodes[i].handleUpdate(time, timeDelta)
-    // TODO propagate dirty area bbox up the scene graph
-    if (this.parent && this.changed) {
-      this.parent.changed = this.changed
-      this.changed = false
+      
+
+    // TODO propagate bmp clearning up graph
+    if (this.changed) {
+      if(this.changed === true) {
+        this.isDirty = true
+        
+        //update child matrix
+        function func(n) {
+	        if(!n) return;
+	        
+	        for(var i = 0 ; i < n.childNodes.length ; i++)
+	            func(n.childNodes[i]);
+	        
+	        n.needMatrixUpdate = true
+	    }
+	    func(this);
+	    
+	    if(this.parent && !this.parent.changed) this.parent.changed = this
+      } else if(this.parent && !this.parent.changed)
+        this.parent.changed = this.changed
+        
+      if(this.parent) this.changed = false
     }
-    this.needMatrixUpdate = true
+    
+    var pbb = this.previousBoundingBox
+    var cbb = this.getSubtreeBoundingBox()
+
+    //change in scale
+    if(!cbb || !this.bmpBoundingBox || parseInt(cbb[2]) != parseInt(this.bmpBoundingBox[2])
+            || parseInt(cbb[3]) != parseInt(this.bmpBoundingBox[3])) {
+        this.bmpCache = null
+    }
+
+    if(this.isDirty) {
+        var isdif = false
+        this.isDirty = false
+
+        if(cbb && pbb) //compare
+            for(var i = 0 ; i < 4 ; i++)
+                if(pbb[i] != cbb[i])
+                    isdif = true
+        else if(cbb || pbb) //or changed visibility
+            isdif = true;
+      
+        if(isdif) {
+            !cbb || this.root.dirtyRegions.push(cbb)
+            !pbb || this.root.dirtyRegions.push(pbb)
+        }
+    }
   },
 
   /**
@@ -3265,6 +3362,77 @@ CanvasNode = Klass(Animatable, Transformable, {
     */
   isPointInPath : false,
 
+  handleDraw : function(ctx) {
+    if(!this.root.allowCacheAsBitmap)
+        this.cacheAsBitmap = null
+    
+    if (this.root.drawBoundingBoxes && this.isVisible)
+      this.isVisible(ctx)
+    
+    if(!this.cacheAsBitmap || this.bmpCache) 
+        return this.realHandleDraw(ctx)
+    
+    var old_pbb = this.previousBoundingBox
+    
+    var old = this.cacheAsBitmap
+    this.cacheAsBitmap = null
+    this.realHandleDraw(ctx);
+    this.needMatrixUpdate = true
+    
+    var canvas = document.createElement('canvas')
+    var cobj = new Canvas(canvas, {
+        isPlaying: false,
+        fill : [80,0,0,0]
+    });
+    var dctx = cobj.getContext();
+    var p = this.parent
+    var childs = this.childNodes;
+    var x = this.x
+    var y = this.y
+    var bb = this.getSubtreeBoundingBox()
+    
+    if(!bb) return this.realHandleDraw(ctx);
+    
+    var pm = this.parent.currentMatrix;
+
+    this.needMatrixUpdate = true
+    this.cacheAsBitmap = null
+    this.changed = true
+    this.bmpBoundingBox = bb
+
+    cobj.width = canvas.width = bb[2]
+    cobj.height = canvas.height = bb[3]
+    cobj.x -= bb[0]
+    cobj.y -= bb[1]
+
+    console.log(['making bmpcache', this.bmpBoundingBox]);
+
+    cobj.matrix = pm;
+    cobj.needMatrixUpdate = true
+
+    this.parent = this.parentNode = null
+    cobj.append(this);
+
+    if(old != 'all')
+        this.childNodes = [];
+
+    cobj.onFrame();
+    cobj.remove(this);
+    
+    this.childNodes = childs
+    this.parent = this.parentNode = p
+    this.setRoot(p.root)
+    this.x = x
+    this.y = y
+    this.needMatrixUpdate = true
+    this.previousBoundingBox = old_pbb
+    this.cacheAsBitmap = old
+    this.bmpCache = canvas
+    this.changed = true
+
+    //return this.realHandleDraw(ctx)
+  },
+
   /**
     Handles transforming and drawing the node and its childNodes
     on each frame.
@@ -3280,7 +3448,7 @@ CanvasNode = Klass(Animatable, Transformable, {
 
     @param ctx Canvas 2D context
     */
-  handleDraw : function(ctx) {
+  realHandleDraw : function(ctx) {
     // CSS display & visibility
     if (this.display)
       this.visible = (this.display != 'none')
@@ -3296,7 +3464,9 @@ CanvasNode = Klass(Animatable, Transformable, {
       ctx.fontFamily = this.fontFamily
     if (this.fontSize)
       ctx.fontSize = this.fontSize
-    this.transform(ctx)
+
+    this.transform(ctx, false)
+
     if (this.clipPath) {
       ctx.beginPath()
       if (this.clipPath.units == this.OBJECTBOUNDINGBOX) {
@@ -3312,19 +3482,41 @@ CanvasNode = Klass(Animatable, Transformable, {
         ctx.clip()
       }
     }
-    if (this.drawable && this.draw)
-      this.draw(ctx)
-    var c = this.__getChildrenCopy()
-    this.__zSort(c);
-    for(var i=0; i<c.length; i++) {
-      c[i].handleDraw(ctx)
+
+    if ((this.drawable && this.draw) || this.bmpCache) {
+      if(this.bmpCache) {
+      	//var cbb = this.previousBoundingBox
+        var cbb = this.getSubtreeBoundingBox()
+      	
+        //console.log("drawing bitmap " + (this.id || 'uk'));
+        ctx.save();
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.drawImage(this.bmpCache, 
+            cbb[0], 
+            cbb[1])
+        ctx.restore();
+      } else {
+        this.draw(ctx)
+        //if(this.id != 'root')
+        //    console.log("drawing non bitmap " + (this.id || 'uk'));
+      }
     }
+
+    if(this.cacheAsBitmap != 'all') {
+        var c = this.__getChildrenCopy()
+        this.__zSort(c)
+        for(var i=0; i<c.length; i++) {
+          c[i].handleDraw(ctx)
+        }
+    }
+    
     ctx.fontFamily = pff
     ctx.fontSize = pfs
     ctx.fillOn = pfo
     ctx.strokeOn = pso
     ctx.restore()
   },
+
 
   /**
     Transforms the context state according to this node's attributes.
@@ -3422,14 +3614,16 @@ CanvasNode = Klass(Animatable, Transformable, {
   },
 
   getSubtreeBoundingBox : function(identity) {
+    var p
     if (identity) {
-      var p = this.parent
+      p = this.parent
       this.parent = null
       this.needMatrixUpdate = true
     }
     var bb = this.getAxisAlignedBoundingBox()
     for (var i=0; i<this.childNodes.length; i++) {
       var cbb = this.childNodes[i].getSubtreeBoundingBox()
+
       if (!bb) {
         bb = cbb
       } else if (cbb) {
@@ -3439,7 +3633,9 @@ CanvasNode = Klass(Animatable, Transformable, {
     if (identity) {
       this.parent = p
       this.needMatrixUpdate = true
-    }
+    } else if(bb)
+        this.lastBoundingBox = bb    
+        
     return bb
   },
 
@@ -3447,29 +3643,33 @@ CanvasNode = Klass(Animatable, Transformable, {
     var obx = bb[0], oby = bb[1]
     if (bb[0] > bb2[0]) bb[0] = bb2[0]
     if (bb[1] > bb2[1]) bb[1] = bb2[1]
-    bb[2] = bb[2] + obx - bb[0]
-    bb[3] = bb[3] + oby - bb[1]
+    bb[2] += obx-bb[0]
+    bb[3] += oby-bb[1]
     if (bb[2]+bb[0] < bb2[2]+bb2[0]) bb[2] = bb2[2]+bb2[0]-bb[0]
     if (bb[3]+bb[1] < bb2[3]+bb2[1]) bb[3] = bb2[3]+bb2[1]-bb[1]
   },
 
-  getAxisAlignedBoundingBox : function() {
-    this.transform(null, true)
-    if (!this.getBoundingBox) return null
-    var bbox = this.getBoundingBox()
-    var xy1 = CanvasSupport.tMatrixMultiplyPoint(this.currentMatrix,
+  transformBoundingBoxBy: function(bbox, m) {
+    var xy1 = CanvasSupport.tMatrixMultiplyPoint(m,
       bbox[0], bbox[1])
-    var xy2 = CanvasSupport.tMatrixMultiplyPoint(this.currentMatrix,
+    var xy2 = CanvasSupport.tMatrixMultiplyPoint(m,
       bbox[0]+bbox[2], bbox[1]+bbox[3])
-    var xy3 = CanvasSupport.tMatrixMultiplyPoint(this.currentMatrix,
+    var xy3 = CanvasSupport.tMatrixMultiplyPoint(m,
       bbox[0], bbox[1]+bbox[3])
-    var xy4 = CanvasSupport.tMatrixMultiplyPoint(this.currentMatrix,
+    var xy4 = CanvasSupport.tMatrixMultiplyPoint(m,
       bbox[0]+bbox[2], bbox[1])
     var x1 = Math.min(xy1[0], xy2[0], xy3[0], xy4[0])
     var x2 = Math.max(xy1[0], xy2[0], xy3[0], xy4[0])
     var y1 = Math.min(xy1[1], xy2[1], xy3[1], xy4[1])
     var y2 = Math.max(xy1[1], xy2[1], xy3[1], xy4[1])
     return [x1, y1, x2-x1, y2-y1]
+  },
+
+  getAxisAlignedBoundingBox : function() {
+    this.transform(null, true)
+    if (!this.getBoundingBox) return null
+    var bbox = this.getBoundingBox()
+    return this.transformBoundingBoxBy(bbox, this.currentMatrix)
   },
 
   makeDraggable : function() {
@@ -3487,7 +3687,9 @@ CanvasNode = Klass(Animatable, Transformable, {
       return false;
     }, false);
   }
-})
+}
+
+CanvasNode = Klass(Animatable, Transformable, CanvasNode);
 
 
 /**
@@ -3566,8 +3768,8 @@ CanvasNode = Klass(Animatable, Transformable, {
     })
 
   */
-Canvas = Klass(CanvasNode, {
-
+//Canvas = Klass(CanvasNode, {
+var Canvas = {
   clear : true,
   frameLoop : false,
   recording : false,
@@ -3592,7 +3794,11 @@ Canvas = Klass(CanvasNode, {
   cursor : 'default',
 
   mouseDown : false,
-  mouseEvents : [],
+  mouseEvents : null,
+  
+  dirtyRegions : null,
+  allowCacheAsBitmap : false,
+  redrawOnlyWhatChanged : false,
 
   // absolute pixel coordinates from canvas top-left
   absoluteMouseX : null,
@@ -3624,6 +3830,11 @@ Canvas = Klass(CanvasNode, {
   elementNodeZIndexCounter : 0,
 
   initialize : function(canvas, config) {
+    this.mouseEvents = []
+    this.dirtyRegions = []
+    
+    if(!arguments.length) return;
+    
     if (arguments.length > 2) {
       var container = arguments[0]
       var w = arguments[1]
@@ -3666,14 +3877,17 @@ Canvas = Klass(CanvasNode, {
   addEventListeners : function() {
     var th = this
     this.canvas.parentNode.addMouseEvent = function(e){
+        e.type == 'mousemove' || console.log(e);
       var xy = Mouse.getRelativeCoords(this, e)
       th.absoluteMouseX = xy.x
       th.absoluteMouseY = xy.y
       var style = document.defaultView.getComputedStyle(th.canvas,"")
       var w = parseFloat(style.getPropertyValue('width'))
       var h = parseFloat(style.getPropertyValue('height'))
-      th.mouseX = th.absoluteMouseX * (w / th.canvas.width)
-      th.mouseY = th.absoluteMouseY * (h / th.canvas.height)
+      e.clientX = th.mouseX = th.absoluteMouseX / 
+        (w / th.canvas.width)
+      e.clientY = th.mouseY = th.absoluteMouseY / 
+        (h / th.canvas.height)
       th.addMouseEvent(th.mouseX, th.mouseY, th.mouseDown)
     }
     this.canvas.parentNode.contains = this.contains
@@ -3693,6 +3907,18 @@ Canvas = Klass(CanvasNode, {
     this.canvas.parentNode.addEventListener('mouseup', function(e) {
       this.addMouseEvent(e)
       th.mouseDown = false
+
+      var nev = document.createEvent('MouseEvents')
+      nev.initMouseEvent('mouseup', true, true, window, e.detail,
+          e.screenX, e.screenY, e.clientX, e.clientY, e.ctrlKey, e.altKey,
+          e.shiftKey, e.metaKey, e.button, e.relatedTarget)
+
+      nev.clientX = e.clientX
+      nev.clientY = e.clientY
+
+      !th.keyTarget || !th.keyTarget.specialFocus 
+         || (console.log('spec focus'), th.keyTarget.dispatchEvent(nev))
+
     }, true)
 
     this.canvas.parentNode.addEventListener('mousemove', function(e) {
@@ -3744,6 +3970,79 @@ Canvas = Klass(CanvasNode, {
       if (!CanvasNode.contains.call(this, e.relatedTarget))
         th.absoluteMouseX = th.absoluteMouseY = th.mouseX = th.mouseY = null
     }, true)
+
+    this.canvas.parentNode.addEventListener('tap', function(e) {
+        var nev = document.createEvent('MouseEvents')
+        nev.initMouseEvent('mousedown', true, true, window, e.detail,
+          e.screenX, e.screenY, e.clientX, e.clientY, e.ctrlKey, e.altKey,
+          e.shiftKey, e.metaKey, e.button, e.relatedTarget)
+        th.dispatchEvent(nev)
+console.log('tap');
+        nev = document.createEvent('MouseEvents')
+        nev.initMouseEvent('mouseup', true, true, window, e.detail,
+          e.screenX, e.screenY, e.clientX, e.clientY, e.ctrlKey, e.altKey,
+          e.shiftKey, e.metaKey, e.button, e.relatedTarget)
+        th.canvas.parentNode.dispatchEvent(nev)
+        
+        e.preventDefault()
+    }, true);
+    
+    /*this.canvas.parentNode.addEventListener('taphold', function(e) {
+        var nev = document.createEvent('MouseEvents')
+        nev.initMouseEvent('mousedown', true, true, window, e.detail,
+          e.screenX, e.screenY, e.clientX, e.clientY, e.ctrlKey, e.altKey,
+          e.shiftKey, e.metaKey, e.button, e.relatedTarget)
+        th.dispatchEvent(nev)
+
+        nev = document.createEvent('MouseEvents')
+        nev.initMouseEvent('mouseup', true, true, window, e.detail,
+          e.screenX, e.screenY, e.clientX, e.clientY, e.ctrlKey, e.altKey,
+          e.shiftKey, e.metaKey, e.button, e.relatedTarget)
+        th.canvas.parentNode.dispatchEvent(nev)
+        
+        e.preventDefault()
+    });*/
+    
+    this.canvas.parentNode.addEventListener('touchstart', function(e) {
+        var nev = document.createEvent('MouseEvents')
+        if(!e.touches || !e.touches.length) return;
+
+        e.clientX = e.touches[0].pageX;
+        e.clientY = e.touches[0].pageY;
+        
+        nev.initMouseEvent('mousedown', true, true, window, e.detail,
+          e.screenX, e.screenY, e.clientX, e.clientY, e.ctrlKey, e.altKey,
+          e.shiftKey, e.metaKey, e.button, e.relatedTarget)
+        th.canvas.parentNode.dispatchEvent(nev)
+        
+        //e.preventDefault()
+    }, true);
+    
+    this.canvas.parentNode.addEventListener('touchend', function(e) {
+        var nev = document.createEvent('MouseEvents')
+
+        nev.initMouseEvent('mouseup', true, true, window, e.detail,
+          e.screenX, e.screenY, e.clientX, e.clientY, e.ctrlKey, e.altKey,
+          e.shiftKey, e.metaKey, e.button, e.relatedTarget)
+        th.canvas.parentNode.dispatchEvent(nev)
+        
+        e.preventDefault()
+    }, true);
+    
+    this.canvas.parentNode.addEventListener('touchmove', function(e) {
+        var nev = document.createEvent('MouseEvents')
+        if(!e.touches || !e.touches.length) return;
+        
+        e.clientX = e.touches[0].pageX;
+        e.clientY = e.touches[0].pageY;
+
+        nev.initMouseEvent('mousemove', true, true, window, e.detail,
+          e.screenX, e.screenY, e.clientX, e.clientY, e.ctrlKey, e.altKey,
+          e.shiftKey, e.metaKey, e.button, e.relatedTarget)
+        th.canvas.parentNode.dispatchEvent(nev)
+        
+        e.preventDefault()
+    }, true);
 
     var dispatch = this.dispatchEvent.bind(this)
     var types = [
@@ -3810,8 +4109,10 @@ Canvas = Klass(CanvasNode, {
           th.dispatchEvent(nev)
           th.dragTarget = false
         }
+        
         if (!th.canvas.parentNode.contains(e.target)) {
           var rv = th.dispatchEvent(e)
+
           if (th.keyTarget) {
             th.dispatchEvent({type: 'blur', canvasTarget: th.keyTarget})
             th.keyTarget = null
@@ -3952,6 +4253,59 @@ Canvas = Klass(CanvasNode, {
     }
     return rv
   },
+  
+  makeRedrawRegion : function(ctx) {
+    ctx.beginPath()
+
+    //console.log('region length ' + this.dirtyRegions.length)
+
+    if(this.redrawOnlyWhatChanged && !this.showRedrawRegions) {
+        for(var i = 0 ; i < this.dirtyRegions.length ; i++) {
+            var reg = this.dirtyRegions[i]
+     
+            ctx.rect(reg[0] - 5, reg[1] - 5, reg[2] + 10, reg[3] + 10)
+        }
+    
+        if(!this.dirtyRegions.length)
+            ctx.rect(0, 0, 1, 1)
+    } else
+        ctx.rect(0, 0, this.width, this.height)
+
+    ctx.clip();
+    
+    this.oldRegions = this.dirtyRegions
+    this.dirtyRegions = []
+  },
+  
+  drawRedrawRegion : function(ctx) {
+    ctx.beginPath()
+
+    //console.log('region length ' + this.dirtyRegions.length)
+
+    if(this.redrawOnlyWhatChanged) {
+    	ctx.rect(0, 0, this.width, this.height)
+
+        ctx.clip();
+        
+        for(var i = 0 ; i < this.oldRegions.length ; i++) {
+            var reg = this.oldRegions[i]
+     
+            ctx.rect(reg[0] - 5, reg[1] - 5, reg[2] + 10, reg[3] + 10)
+        }
+    
+        ctx.strokeStyle = 'rgb(255,0,0)';
+        ctx.stroke()
+    }
+  },
+
+  handleDraw : function(ctx) {
+    this.nDraws++;
+    ctx.save()
+    this.makeRedrawRegion(ctx)
+    CanvasNode.prototype.handleDraw.apply(this, arguments)
+    !this.showRedrawRegions || this.drawRedrawRegion(ctx)
+    ctx.restore()
+  },
 
   /**
     The frame loop function. Called every #frameDuration milliseconds.
@@ -3972,6 +4326,10 @@ Canvas = Klass(CanvasNode, {
     try {
       var realTime = new Date().getTime()
       this.currentRealElapsed = (realTime - this.realTime)
+      
+      if(this.currentRealElapsed < (this.frameLimit || 0) / 1.5)
+        return;
+      
       this.currentRealFps = 1000 / this.currentRealElapsed
       var dt = this.frameDuration * this.speed
       if (!this.fixedTimestep)
@@ -4133,8 +4491,9 @@ Canvas = Klass(CanvasNode, {
     ctx.fillOn = false
     ctx.strokeOn = false
   }
-})
+}
 
+Canvas = Klass(CanvasNode, Canvas);
 
 /**
   Hacky link class for emulating <a>.
@@ -4614,8 +4973,7 @@ Drawable = Klass(CanvasNode, {
     // and caching the bboxes is hard to do correctly.
     // plus, bboxes aren't hierarchical.
     // so we are being glib :|
-    if (this.root.drawBoundingBoxes)
-      this.isVisible(ctx)
+    
     var ft = (ctx.fillStyle.transformList ||
               ctx.fillStyle.matrix ||
               ctx.fillStyle.scale != null ||
@@ -6089,7 +6447,7 @@ ImageNode.load = function(src) {
     text - The text string to draw.
     align - Horizontal alignment for the text.
             'left', 'right', 'center', 'start' or 'end'
-    baseline - Baseline used for the text.
+    textBaseline - Baseline used for the text.
                'top', 'hanging', 'middle', 'alphabetic', 'ideographic' or 'bottom'
     asPath - If true, creates a text path instead of drawing the text.
     pathGeometry - A geometry object the path of which the text follows.
@@ -6104,8 +6462,6 @@ ImageNode.load = function(src) {
 TextNode = Klass(Drawable, {
   text : 'Text',
   align : 'start', // 'left' | 'right' | 'center' | 'start' | 'end'
-  baseline : 'alphabetic', // 'top' | 'hanging' | 'middle' | 'alphabetic' |
-                           // 'ideographic' | 'bottom'
   accuratePicking : false,
   asPath : false,
   pathGeometry : null,
@@ -6168,7 +6524,9 @@ TextNode = Klass(Drawable, {
   },
 
   drawHTML5 : function(ctx) {
-    ctx.fillText(this.text, this.cx, this.cy, this.maxWidth)
+    var x = this.cx + this.computeXForAlign()
+    var y = this.cy + 0
+    ctx.fillText(this.text, x, y, this.maxWidth)
   },
 
   drawPickingPathHTML5 : function(ctx) {
