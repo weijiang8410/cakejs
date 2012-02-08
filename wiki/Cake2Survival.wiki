@@ -1,0 +1,10 @@
+#summary Tips on migrating to cake 2.0
+
+= Introduction =
+
+This document will outline some of the issues you may have when converting to the new cake.
+
+= Details =
+
+More aggressive *changed* flag.
+  * The matrix transform on nodes will only be updated when the changed flag is set. In some modes this is also required to render a new frame and/or create redraw regions.
