@@ -65,7 +65,6 @@
     }
 
 
-
     Player = function(t, td) {
       this.target = Player.targets[this.id]
       var th = this
@@ -174,7 +173,7 @@
             for (var i=0; i<this.friends.length; i++) {
               var th = this.friends[i]
               // find highest threat that's not yet a probable kill
-              var tr = threats.find(function(tg){
+              var tr = Array.find.call(threats, function(tg){
                 return (FleetAI.useDamageEstimates ? (damageEstimates[tg.id] < tg.health)
                                                   : tg.health > 0) &&
                       (th.weapon.range >= th.distanceTo(tg))
@@ -354,9 +353,14 @@
           this.startTime = t
         var elapsed = Math.min(500, t - this.startTime)
         var fac = 0.48 * 0.004 * Math.PI
-        this.main.scale = 1 + this.size *
-                          (Explosion.fastExplosions ? 1 :
-                                                      Math.tan(elapsed * fac))
+        var scale = Explosion.fastExplosions ? 1 : Math.tan(elapsed * fac);
+        
+        if(scale > 8) {
+            this.main.fill = [190,105,90,0.03 * 1 / (scale * 0.1)];
+            this.main.compositeOperation = null;
+        }
+        
+        this.main.scale = 1 + this.size * scale;
       }
     })
 
@@ -481,6 +485,7 @@
         this.rotation = Math.random() * Math.PI*2
         this.model = new Polygon([20,0, -10,15, -10,-15])
         this.model.strokeWidth = 2
+        this.model.stroke = color;
         //this.core = new Circle(5)
         this.hardpoint = this.model.clone()
         Object.extend(this.hardpoint, {
@@ -489,6 +494,7 @@
           stroke: false,
           fill: this.weapon.color
         })
+        this.after(20000, this.removeSelf)
         this.append(this.weapon)
         this.append(this.pointDefense)
         this.model.append(this.hardpoint)
@@ -758,6 +764,62 @@
     })
 
 
+    Weapon = Klass(CanvasNode, {
+      catchMouse : false,
+      movementSpeed : 100,
+      turningSpeed : 1,
+      health : 20,
+      projectileHealth : 1,
+      hitDamageToSelf : 1,
+      range : 200,
+      optimalRange : 100,
+      reloadTime : 1000,
+      salvos : 5,
+      techLevel : 0,
+      rotation : 0,
+      shotsFired : 0,
+      height: 2,
+      color: 'white',
+      x : 0, y : 0, rotation : 0,
+      projectile : null,
+      readyToFire : true,
+
+      initialize : function(techLevel) {
+        this.projectile = Projectile;
+        CanvasNode.initialize.call(this)
+        this.freeSalvos = this.salvos
+        if (techLevel)
+          this.techLevel = techLevel
+      },
+
+      fireAt : function(target) {
+        if (this.freeSalvos < 1) return false
+        this.freeSalvos--
+        this.rx = this.x + this.ship.x
+        this.ry = this.y + this.ship.y
+        this.rrot = this.rotation + this.ship.rotation
+        this.shotsFired++
+        var proj = this.createProjectile(target)
+        this.ship.parent.append(proj)
+        this.after(this.reloadTime, this.reload)
+        this.readyToFire = (this.freeSalvos > 0)
+      },
+
+      reload : function() {
+        this.freeSalvos++
+        this.readyToFire = (this.freeSalvos > 0)
+      },
+
+      createProjectile : function(target) {
+        var rrot = this.rrot;
+        if(this.initialAccuracy) {
+            var marg = 1 - this.initialAccuracy;
+            rrot *= (0.5 - Math.random()) * marg + 1;
+        }
+        var out = new this.projectile(target, this, this.rx, this.ry, rrot)
+        return out;
+      }
+    })
 
 
     Projectile = Klass(ControlledNode, {
@@ -766,16 +828,29 @@
       
       initialize : function(target, weapon, x, y, rot) {
         this.targetingFunction = this.angleTo
-        Object.extend(this, weapon)
+        
+        //Object.extend(this, weapon)
+
+        this.fill = weapon.color;
+        this.ship = weapon.ship;
+   
+        for(var i in weapon) {
+            var p = weapon[i];
+
+            if(typeof(p) != 'function' && typeof(p) != 'number') continue;
+
+            this[i] = p;
+        }
+
         ControlledNode.initialize.call(this)
         this.elapsed = 0
         this.target = target
         this.x = x
         this.y = y
         this.rotation = rot
-        this.model = new Rectangle(this.movementSpeed / 16, this.height, {centered : true})
+        this.model = new Rectangle(this.movementSpeed / 16, this.height, {centered : true, fill: this.fill})
         this.append(this.model)
-        this.fill = this.color
+        
         if (this.projectileHealth)
           this.health = this.projectileHealth
         this.maxHealth = this.health
@@ -817,56 +892,6 @@
         if (this.parent) this.parent.append(ex)
       }
       
-    })
-    
-    Weapon = Klass(CanvasNode, {
-      catchMouse : false,
-      movementSpeed : 100,
-      turningSpeed : 1,
-      health : 20,
-      projectileHealth : 1,
-      hitDamageToSelf : 1,
-      range : 200,
-      optimalRange : 100,
-      reloadTime : 1000,
-      salvos : 5,
-      techLevel : 0,
-      rotation : 0,
-      shotsFired : 0,
-      height: 2,
-      color: 'white',
-      x : 0, y : 0, rotation : 0,
-      projectile : Projectile,
-      readyToFire : true,
-
-      initialize : function(techLevel) {
-        CanvasNode.initialize.call(this)
-        this.freeSalvos = this.salvos
-        if (techLevel)
-          this.techLevel = techLevel
-      },
-
-      fireAt : function(target) {
-        if (this.freeSalvos < 1) return false
-        this.freeSalvos--
-        this.rx = this.x + this.ship.x
-        this.ry = this.y + this.ship.y
-        this.rrot = this.rotation + this.ship.rotation
-        this.shotsFired++
-        var proj = this.createProjectile(target)
-        this.ship.parent.append(proj)
-        this.after(this.reloadTime, this.reload)
-        this.readyToFire = (this.freeSalvos > 0)
-      },
-
-      reload : function() {
-        this.freeSalvos++
-        this.readyToFire = (this.freeSalvos > 0)
-      },
-
-      createProjectile : function(target) {
-        return new this.projectile(target, this, this.rx, this.ry, this.rrot)
-      }
     })
 
 
@@ -970,7 +995,7 @@
         if (this.techLevel >= 4) {
           this.targetingFunction = this.predictAngleTo
         }
-        this.after(5000, this.removeSelf)
+        this.after(2500, this.removeSelf)
       },
 
       predictAngleTo : function(target) {
@@ -1015,16 +1040,17 @@
 
     Beam = Klass(Weapon, {
       movementSpeed : 200,
-      turningSpeed : 6,
+      turningSpeed : 4,
       health : 1,
       range : 200,
       optimalRange : 50,
+      initialAccuracy: 0.9,
       reloadTime : 500,
       hitRadius : 6,
       damage : 15,
       salvos: 3,
       color: '#cc44ff',
-      sdTime : 1250,
+      sdTime : 1750,
       height : 1,
       isMissile : true,
       damageType : 'electric',
@@ -1113,7 +1139,8 @@
     Railgun = Klass(Weapon, {
       isMissile : true,
       movementSpeed : 550,
-      turningSpeed : 0.2,
+      turningSpeed : 0.01,
+      initialAccuracy: 0.9,
       projectileHealth : 5,
       range : 600,
       optimalRange : 400,
@@ -1225,7 +1252,7 @@
       movementSpeed : 250,
       turningSpeed : 4,
       health : 1,
-      range : 250,
+      range : 450,
       optimalRange : 100,
       reloadTime : 500,
       damage : 4,
@@ -1980,7 +2007,7 @@
         this.append(this.menu)
         this.setupMenu()
         this.newShip()
-        this.every(10000, this.newShip)
+        this.every(6000, this.newShip)
         this.selectRect.opacity = 0
       },
 
@@ -1989,20 +2016,24 @@
       newShip : function() {
         var blue = '#2266aa'
         var red = '#aa2222'
-        var blues = this.childNodes.filter(function(n) { return n.team == blue }).length
-        var reds = this.childNodes.filter(function(n) { return n.team == red }).length
-        var d = 1 + Math.ceil(Math.max(0, (blues - reds) / 3)) * 3
-        this.taskforce(red, Math.random()*this.width, Math.random()*this.height, d)
-        var d = 1 + Math.ceil(Math.max(0, (reds - blues) / 3)) * 3
-        this.taskforce(blue, Math.random()*this.width, Math.random()*this.height, d)
+
+        for(var i = 0 ; i < 2 * Math.random() ; i++) {
+	        var blues = this.childNodes.filter(function(n) { return n.team == blue }).length
+	        var reds = this.childNodes.filter(function(n) { return n.team == red }).length
+	        var d = 2 + Math.ceil(Math.max(0, (blues - reds) / 3)) * 3
+	        this.taskforce(red, Math.random()*this.width, Math.random()*this.height, d)
+	        var d = 2 + Math.ceil(Math.max(0, (reds - blues) / 3)) * 3
+	        this.taskforce(blue, Math.random()*this.width, Math.random()*this.height, d)
+        }
       },
 
       taskforce : function(color, x, y, size) {
         var wps = [Missiles, Beam, Railgun]
         var tl = Math.random() * 6
+        var wp = wps[Math.floor(wps.length * Math.random())]
+        var pd = (wp == Missiles) ? PointDefenseMissiles : PointDefenseGun
         for (var i=0; i<size; i++) {
-          var wp = wps[Math.floor(wps.length * Math.random())]
-          var pd = (wp == Missiles) ? PointDefenseMissiles : PointDefenseGun
+          
           if (wp == Beam) pd = Beam
           if (Math.random() < 0.05) {
             wp = pd = RapidFireRailgun
@@ -2010,6 +2041,10 @@
           var ship = new Ship(color, new wp(tl), new pd(tl),
             x + Math.random() * 100 - 50,
             y + Math.random() * 100 - 50)
+            
+          ship.movementSpeed *= 2 * Math.random() + 0.3;
+          ship.turningSpeed += 0.5 * Math.random() - 0.5;
+        
           if (color == '#2266aa')
             ship.strategicAI = FleetAI
           this.append(ship)
@@ -2102,9 +2137,10 @@
       initialize : function(canvasElem) {
         CanvasNode.initialize.call(this)
         this.canvas = new Canvas(canvasElem)
+        this.canvas.legacyCake = true;
         this.canvas.frameDuration = 30
         this.canvas.append(this)
-        this.canvas.fixedTimestep = true
+        this.canvas.fixedTimestep = false
         this.canvas.clear = false
         this.gameOver()
         this.setupEtc()

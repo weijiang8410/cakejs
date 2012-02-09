@@ -25,26 +25,43 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 */
 
+
+
+if(!window.Profiler) 
+    Profiler = {
+    	wrap_class: function() {}
+    }
+
+var SHOW_FPS = false;
+var AGGRESSIVE_NO_UPDATE = false;
+
 window.requestAnimFrame = (function(){
       return  window.requestAnimationFrame       || 
               window.webkitRequestAnimationFrame || 
               window.mozRequestAnimationFrame    || 
               window.oRequestAnimationFrame      || 
               window.msRequestAnimationFrame     || 
-              function(/* function */ callback, /* DOMElement */ element){
-                window.setTimeout(callback, 1000 / 60);
+              function(/* function */ callback, /* DOMElement */ element, offset){
+                window.setTimeout(callback, Math.max(1000 / 75 - (offset || 0), 1));
               };
     })();
- 
-/**
-  Delete the first instance of obj from the array.
 
-  @param obj The object to delete
-  @return true on success, false if array contains no instances of obj
-  @type boolean
-  @addon
-  */
-Array.prototype.deleteFirst = function(obj) {
+window.getRequestAnimFrameFixed = function(dt) {
+  return function(/* function */ callback, /* DOMElement */ element, offset){
+        window.setTimeout(callback, Math.max(1000 / dt - (offset || 0), 1));
+      };
+};
+
+window.getImmediateAnimFrameFixed = function(dt) {
+  return function(/* function */ callback, /* DOMElement */ element){
+  	window.setTimeout(callback, 0 );
+  	
+  	//__lastTriggerRequest = callback;
+
+  };
+}
+
+Array.deleteFirst = function(obj) {
   for (var i=0; i<this.length; i++) {
     if (this[i] == obj) {
       this.splice(i,1)
@@ -54,7 +71,7 @@ Array.prototype.deleteFirst = function(obj) {
   return false
 }
 
-Array.prototype.stableSort = function(cmp) {
+Array.stableSort = function(cmp) { 
   // hack to work around Chrome's qsort
   for(var i=0; i<this.length; i++) {
     this[i].__arrayPos = i;
@@ -71,10 +88,7 @@ Array.__stableSorter = function(cmp) {
   });
 }
 
-/**
-  Compares two arrays for equality. Returns true if the arrays are equal.
-  */
-Array.prototype.equals = function(array) {
+Array.equals = function(array) {
   if (!array) return false
   if (this.length != array.length) return false
   for (var i=0; i<this.length; i++) {
@@ -89,15 +103,7 @@ Array.prototype.equals = function(array) {
   return true
 }
 
-/**
-  Rotates the first element of an array to be the last element.
-  Rotates last element to be the first element when backToFront is true.
-
-  @param {boolean} backToFront Whether to move the last element to the front or not
-  @return The last element when backToFront is false, the first element when backToFront is true
-  @addon
-  */
-Array.prototype.rotate = function(backToFront) {
+Array.rotate = function(backToFront) {
   if (backToFront) {
     this.unshift(this.pop())
     return this[0]
@@ -106,17 +112,12 @@ Array.prototype.rotate = function(backToFront) {
     return this[this.length-1]
   }
 }
-/**
-  Returns a random element from the array.
 
-  @return A random element
-  @addon
- */
-Array.prototype.pick = function() {
+Array.pick = function() {
   return this[Math.floor(Math.random()*this.length)]
 }
 
-Array.prototype.flatten = function() {
+Array.flatten = function() {
   var a = []
   for (var i=0; i<this.length; i++) {
     var e = this[i]
@@ -132,7 +133,7 @@ Array.prototype.flatten = function() {
   return a
 }
 
-Array.prototype.take = function() {
+Array.take = function() {
   var a = []
   for (var i=0; i<this.length; i++) {
     var e = []
@@ -144,8 +145,8 @@ Array.prototype.take = function() {
   return a
 }
 
-if (!Array.prototype.pluck) {
-  Array.prototype.pluck = function(key) {
+if (!Array.pluck) {
+  Array.pluck = function(key) {
     var a = []
     for (var i=0; i<this.length; i++) {
       a[i] = this[i][key]
@@ -154,13 +155,13 @@ if (!Array.prototype.pluck) {
   }
 }
 
-Array.prototype.set = function(key, value) {
+Array.set = function(key, value) {
   for (var i=0; i<this.length; i++) {
     this[i][key] = value
   }
 }
 
-Array.prototype.allWith = function() {
+Array.allWith = function() {
   var a = []
   topLoop:
   for (var i=0; i<this.length; i++) {
@@ -178,22 +179,17 @@ Array.prototype.allWith = function() {
 
 if (!Function.prototype.bind) {
   /**
-    Creates a function that calls this function in the scope of the given
-    object.
-
-      var obj = { x: 'obj' }
-      var f = function() { return this.x }
-      window.x = 'window'
-      f()
-      // => 'window'
-      var g = f.bind(obj)
-      g()
-      // => 'obj'
-
-    @param object Object to bind this function to
-    @return Function bound to object
-    @addon
-    */
+     * Creates a function that calls this function in the scope of the given
+     * object.
+     * 
+     * var obj = { x: 'obj' } var f = function() { return this.x } window.x =
+     * 'window' f() // => 'window' var g = f.bind(obj) g() // => 'obj'
+     * 
+     * @param object
+     *            Object to bind this function to
+     * @return Function bound to object
+     * @addon
+     */
   Function.prototype.bind = function(object) {
     var t = this
     return function() {
@@ -202,55 +198,57 @@ if (!Function.prototype.bind) {
   }
 }
 
-if (!Array.prototype.last) {
+if (!Array.last) {
   /**
-    Returns the last element of the array.
-
-    @return The last element of the array
-    @addon
-    */
-  Array.prototype.last = function() {
+     * Returns the last element of the array.
+     * 
+     * @return The last element of the array
+     * @addon
+     */
+  Array.last = function() {
     return this[this.length-1]
   }
 }
-if (!Array.prototype.indexOf) {
+if (!Array.indexOf) {
   /**
-    Returns the index of obj if it is in the array.
-    Returns -1 otherwise.
-
-    @param obj The object to find from the array.
-    @return The index of obj or -1 if obj isn't in the array.
-    @addon
-    */
-  Array.prototype.indexOf = function(obj) {
+     * Returns the index of obj if it is in the array. Returns -1 otherwise.
+     * 
+     * @param obj
+     *            The object to find from the array.
+     * @return The index of obj or -1 if obj isn't in the array.
+     * @addon
+     */
+  Array.indexOf = function(obj) {
     for (var i=0; i<this.length; i++)
       if (obj == this[i]) return i
     return -1
   }
 }
-if (!Array.prototype.includes) {
+if (!Array.includes) {
   /**
-    Returns true if obj is in the array.
-    Returns false if it isn't.
-
-    @param obj The object to find from the array.
-    @return True if obj is in the array, false if it isn't
-    @addon
-    */
-  Array.prototype.includes = function(obj) {
-    return (this.indexOf(obj) >= 0);
+     * Returns true if obj is in the array. Returns false if it isn't.
+     * 
+     * @param obj
+     *            The object to find from the array.
+     * @return True if obj is in the array, false if it isn't
+     * @addon
+     */
+  Array.includes = function(obj) {
+    return (this.indexOf(obj) !== -1);
   }
 }
 /**
-  Iterate function f over each element of the array and return an array
-  of the return values.
-
-  @param f Function to apply to each element
-  @return An array of return values from applying f on each element of the array
-  @type Array
-  @addon
-  */
-Array.prototype.map = function(f) {
+ * Iterate function f over each element of the array and return an array of the
+ * return values.
+ * 
+ * @param f
+ *            Function to apply to each element
+ * @return An array of return values from applying f on each element of the
+ *         array
+ * @type Array
+ * @addon
+ */
+Array.map = function(f) {
   var na = new Array(this.length)
   if (f)
     for (var i=0; i<this.length; i++) na[i] = f(this[i], i, this)
@@ -258,11 +256,11 @@ Array.prototype.map = function(f) {
     for (var i=0; i<this.length; i++) na[i] = this[i]
   return na
 }
-Array.prototype.forEach = function(f) {
+Array.forEach = function(f) {
   for (var i=0; i<this.length; i++) f(this[i], i, this)
 }
-if (!Array.prototype.reduce) {
-  Array.prototype.reduce = function(f, s) {
+if (!Array.reduce) {
+  Array.reduce = function(f, s) {
     var i = 0
     if (arguments.length == 1) {
       s = this[0]
@@ -274,22 +272,34 @@ if (!Array.prototype.reduce) {
     return s
   }
 }
-if (!Array.prototype.find) {
-  Array.prototype.find = function(f) {
+if (!Array.find) {
+  Array.find = function(f) {
     for(var i=0; i<this.length; i++) {
       if (f(this[i], i, this)) return this[i]
     }
   }
 }
 
+EXTEND_ARRAY_PROTOTYPE = true;
+if(window.EXTEND_ARRAY_PROTOTYPE) {
+    for(var i in Array) {
+        Object.defineProperty(Array.prototype, i, {
+            value : Array[i],
+            writable : true,  
+            enumerable : false,  
+            configurable : true
+        });
+    }
+}
+
 if (!String.prototype.capitalize) {
   /**
-    Returns a copy of this string with the first character uppercased.
-
-    @return Capitalized version of the string
-    @type String
-    @addon
-    */
+     * Returns a copy of this string with the first character uppercased.
+     * 
+     * @return Capitalized version of the string
+     * @type String
+     * @addon
+     */
   String.prototype.capitalize = function() {
     return this.replace(/^./, this.slice(0,1).toUpperCase())
   }
@@ -297,13 +307,13 @@ if (!String.prototype.capitalize) {
 
 if (!String.prototype.escape) {
   /**
-    Returns a version of the string that can be used as a string literal.
-
-    @return Copy of string enclosed in double-quotes, with double-quotes
-            inside string escaped.
-    @type String
-    @addon
-    */
+     * Returns a version of the string that can be used as a string literal.
+     * 
+     * @return Copy of string enclosed in double-quotes, with double-quotes
+     *         inside string escaped.
+     * @type String
+     * @addon
+     */
   String.prototype.escape = function() {
     return '"' + this.replace(/"/g, '\\"') + '"'
   }
@@ -315,13 +325,13 @@ if (!String.prototype.splice) {
 }
 if (!String.prototype.strip) {
   /**
-    Returns a copy of the string with preceding and trailing whitespace
-    removed.
-
-    @return Copy of string sans surrounding whitespace.
-    @type String
-    @addon
-    */
+     * Returns a copy of the string with preceding and trailing whitespace
+     * removed.
+     * 
+     * @return Copy of string sans surrounding whitespace.
+     * @type String
+     * @addon
+     */
   String.prototype.strip = function() {
     return this.replace(/^\s+|\s+$/g, '')
   }
@@ -329,8 +339,8 @@ if (!String.prototype.strip) {
 
 if (!window['$A']) {
   /**
-    Creates a new array from an object with #length.
-    */
+     * Creates a new array from an object with #length.
+     */
   $A = function(obj) {
     var a = new Array(obj.length)
     for (var i=0; i<obj.length; i++)
@@ -347,75 +357,132 @@ if (!window['$']) {
 
 if (!Math.sinh) {
   /**
-    Returns the hyperbolic sine of x.
-
-    @param x The value for x
-    @return The hyperbolic sine of x
-    @addon
-    */
+     * Returns the hyperbolic sine of x.
+     * 
+     * @param x
+     *            The value for x
+     * @return The hyperbolic sine of x
+     * @addon
+     */
   Math.sinh = function(x) {
     return 0.5 * (Math.exp(x) - Math.exp(-x))
   }
   /**
-    Returns the inverse hyperbolic sine of x.
-
-    @param x The value for x
-    @return The inverse hyperbolic sine of x
-    @addon
-    */
+     * Returns the inverse hyperbolic sine of x.
+     * 
+     * @param x
+     *            The value for x
+     * @return The inverse hyperbolic sine of x
+     * @addon
+     */
   Math.asinh = function(x) {
     return Math.log(x + Math.sqrt(x*x + 1))
   }
 }
 if (!Math.cosh) {
   /**
-    Returns the hyperbolic cosine of x.
-
-    @param x The value for x
-    @return The hyperbolic cosine of x
-    @addon
-    */
+     * Returns the hyperbolic cosine of x.
+     * 
+     * @param x
+     *            The value for x
+     * @return The hyperbolic cosine of x
+     * @addon
+     */
   Math.cosh = function(x) {
     return 0.5 * (Math.exp(x) + Math.exp(-x))
   }
   /**
-    Returns the inverse hyperbolic cosine of x.
-
-    @param x The value for x
-    @return The inverse hyperbolic cosine of x
-    @addon
-    */
+     * Returns the inverse hyperbolic cosine of x.
+     * 
+     * @param x
+     *            The value for x
+     * @return The inverse hyperbolic cosine of x
+     * @addon
+     */
   Math.acosh = function(x) {
     return Math.log(x + Math.sqrt(x*x - 1))
   }
 }
 
+function logStackTrace(levels) {
+    var c = console;
+    var callstack = [];
+    var isCallstackPopulated = false;
+    try {
+        throw new Error();
+    } catch (e) {
+        if (e.stack) { //Firefox
+            var lines = e.stack.split('\n');
+            for (var i = 0, len = lines.length; i < len; i++) {
+                if (lines[i].match(/^\s*[A-Za-z0-9\-_\$]+\(/)) {
+                    callstack.push(lines[i]);
+                }
+            }
+            //Remove call to logStackTrace()
+            callstack.shift();
+            isCallstackPopulated = true;
+        }
+        else if (window.opera && e.message) { //Opera
+            var lines = e.message.split('\n');
+            for (var i = 0, len = lines.length; i < len; i++) {
+                if (lines[i].match(/^\s*[A-Za-z0-9\-_\$]+\(/)) {
+                    var entry = lines[i];
+                    //Append next line also since it has the file info
+                    if (lines[i + 1]) {
+                        entry += " at " + lines[i + 1];
+                        i++;
+                    }
+                    callstack.push(entry);
+                }
+            }
+            //Remove call to logStackTrace()
+            callstack.shift();
+            isCallstackPopulated = true;
+        }
+    }
+    if (!isCallstackPopulated) { //IE and Safari
+        var currentFunction = arguments.callee.caller;
+        while (currentFunction) {
+            var fn = currentFunction.toString();
+            var fname = fn.substring(fn.indexOf("function") + 8, fn.indexOf("(")) || "anonymous";
+            callstack.push(fname);
+            currentFunction = currentFunction.caller;
+        }
+    }
+    if (levels) {
+        c.log(callstack.slice(0, levels).join('\n'));
+    }
+    else {
+        c.log(callstack.join('\n'));
+    }
+};
+
 /**
-  Creates and configures a DOM element.
-
-  The tag of the element is given by name.
-
-  If params is a string, it is used as the innerHTML of the created element.
-  If params is a DOM element, it is appended to the created element.
-  If params is an object, it is treated as a config object and merged
-  with the created element.
-
-  If params is a string or DOM element, the third argument is treated
-  as the config object.
-
-  Special attributes of the config object:
-    * content
-      - if content is a string, it is used as the innerHTML of the
-        created element
-      - if content is an element, it is appended to the created element
-    * style
-      - the style object is merged with the created element's style
-
-  @param {String} name The tag for the created element
-  @param params The content or config for the created element
-  @param config The config for the created element if params is content
-  @return The created DOM element
-  */
+ * Creates and configures a DOM element.
+ * 
+ * The tag of the element is given by name.
+ * 
+ * If params is a string, it is used as the innerHTML of the created element. If
+ * params is a DOM element, it is appended to the created element. If params is
+ * an object, it is treated as a config object and merged with the created
+ * element.
+ * 
+ * If params is a string or DOM element, the third argument is treated as the
+ * config object.
+ * 
+ * Special attributes of the config object: content - if content is a string, it
+ * is used as the innerHTML of the created element - if content is an element,
+ * it is appended to the created element style - the style object is merged with
+ * the created element's style
+ * 
+ * @param {String}
+ *            name The tag for the created element
+ * @param params
+ *            The content or config for the created element
+ * @param config
+ *            The config for the created element if params is content
+ * @return The created DOM element
+ */
 E = function(name, params, config) {
   var el = document.createElement(name)
   if (params) {
@@ -459,13 +526,16 @@ E.append = function(node) {
 // Safari requires each canvas to have a unique id.
 E.lastCanvasId = 0
 /**
-  Creates and returns a canvas element with width w and height h.
-
-  @param {int} w The width for the canvas
-  @param {int} h The height for the canvas
-  @param config Optional config object to pass to E()
-  @return The created canvas element
-  */
+ * Creates and returns a canvas element with width w and height h.
+ * 
+ * @param {int}
+ *            w The width for the canvas
+ * @param {int}
+ *            h The height for the canvas
+ * @param config
+ *            Optional config object to pass to E()
+ * @return The created canvas element
+ */
 E.canvas = function(w,h,config) {
   var id = 'canvas-uuid-' + E.lastCanvasId
   E.lastCanvasId++
@@ -474,23 +544,26 @@ E.canvas = function(w,h,config) {
 }
 
 /**
-  Shortcut for document.createTextNode.
-
-  @param {String} text The text for the text node
-  @return The created text node
-  */
+ * Shortcut for document.createTextNode.
+ * 
+ * @param {String}
+ *            text The text for the text node
+ * @return The created text node
+ */
 T = function(text) {
   return document.createTextNode(text)
 }
 
 /**
-  Merges the src object's attributes with the dst object, ignoring errors.
-
-  @param dst The destination object
-  @param src The source object
-  @return The dst object
-  @addon
-  */
+ * Merges the src object's attributes with the dst object, ignoring errors.
+ * 
+ * @param dst
+ *            The destination object
+ * @param src
+ *            The source object
+ * @return The dst object
+ * @addon
+ */
 Object.forceExtend = function(dst, src) {
   for (var i in src) {
     try{ dst[i] = src[i] } catch(e) {}
@@ -498,18 +571,26 @@ Object.forceExtend = function(dst, src) {
   return dst
 }
 // In case Object.extend isn't defined already, set it to Object.forceExtend.
-if (!Object.extend)
-  Object.extend = Object.forceExtend
+//if (!Object.extend)
+//  Object.extend = Object.forceExtend
+Object.extend = function(dst, src) {
+	for(var i in src)
+	   dst[i] = src[i];
+	   
+	return dst;
+}
 
 /**
-  Merges the src object's attributes with the dst object, preserving all dst
-  object's current attributes.
-
-  @param dst The destination object
-  @param src The source object
-  @return The dst object
-  @addon
-  */
+ * Merges the src object's attributes with the dst object, preserving all dst
+ * object's current attributes.
+ * 
+ * @param dst
+ *            The destination object
+ * @param src
+ *            The source object
+ * @return The dst object
+ * @addon
+ */
 Object.conditionalExtend = function(dst, src) {
   for (var i in src) {
     if (dst[i] == null)
@@ -519,12 +600,13 @@ Object.conditionalExtend = function(dst, src) {
 }
 
 /**
-  Creates and returns a shallow copy of the src object.
-
-  @param src The source object
-  @return A clone of the src object
-  @addon
-  */
+ * Creates and returns a shallow copy of the src object.
+ * 
+ * @param src
+ *            The source object
+ * @return A clone of the src object
+ * @addon
+ */
 Object.clone = function(src) {
   if (!src || src == true)
     return src
@@ -550,14 +632,16 @@ Object.clone = function(src) {
 }
 
 /**
-  Creates and returns an Image object, with source URL set to src and
-  onload handler set to onload.
-
-  @param {String} src The source URL for the image
-  @param {Function} onload The onload handler for the image
-  @return The created Image object
-  @type {Image}
-  */
+ * Creates and returns an Image object, with source URL set to src and onload
+ * handler set to onload.
+ * 
+ * @param {String}
+ *            src The source URL for the image
+ * @param {Function}
+ *            onload The onload handler for the image
+ * @return The created Image object
+ * @type {Image}
+ */
 Object.loadImage = function(src, onload) {
   var img = new Image()
   if (onload)
@@ -567,14 +651,16 @@ Object.loadImage = function(src, onload) {
 }
 
 /**
-  Returns true if image is fully loaded and ready for use.
-
-  @param image The image to check
-  @return Whether the image is loaded or not
-  @type {boolean}
-  @addon
-  */
+ * Returns true if image is fully loaded and ready for use.
+ * 
+ * @param image
+ *            The image to check
+ * @return Whether the image is loaded or not
+ * @type {boolean}
+ * @addon
+ */
 Object.isImageLoaded = function(image) {
+  if(!image) return false;
   if (image.tagName == 'CANVAS') return true
   if (!image.complete) return false
   if (image.naturalWidth == null) return true
@@ -582,8 +668,8 @@ Object.isImageLoaded = function(image) {
 }
 
 /**
-  Sums two objects.
-  */
+ * Sums two objects.
+ */
 Object.sum = function(a,b) {
   if (a instanceof Array) {
     if (b instanceof Array) {
@@ -603,8 +689,8 @@ Object.sum = function(a,b) {
 }
 
 /**
-  Substracts b from a.
-  */
+ * Substracts b from a.
+ */
 Object.sub = function(a,b) {
   if (a instanceof Array) {
     if (b instanceof Array) {
@@ -623,27 +709,40 @@ Object.sub = function(a,b) {
   }
 }
 
+/***
+ * @namespace
+ */
 if (!window.Mouse) Mouse = {}
 /**
-  Returns the coordinates for a mouse event relative to element.
-  Element must be the target for the event.
-
-  @param element The element to compare against
-  @param event The mouse event
-  @return An object of form {x: relative_x, y: relative_y}
-  */
+ * Returns the coordinates for a mouse event relative to element. Element must
+ * be the target for the event.
+ * 
+ * @param element
+ *            The element to compare against
+ * @param event
+ *            The mouse event
+ * @return An object of form {x: relative_x, y: relative_y}
+ */
 Mouse.getRelativeCoords = function(element, event) {
   var xy = {x:0, y:0}
   var osl = 0
   var ost = 0
   var el = element
+  
+  /*if(event.offsetX !== undefined) {
+    xy.x = event.offsetX
+    xy.y = event.offsetY
+
+    return xy
+  }*/
+  
   while (el) {
-    osl += el.offsetLeft
-    ost += el.offsetTop
+    osl += (el.offsetLeft || el.offsetX || 0)
+    ost += (el.offsetTop || el.offsetY || 0)
     el = el.offsetParent
   }
-  xy.x = event.pageX - osl
-  xy.y = event.pageY - ost
+  xy.x = (event.pageX || event.clientX) - osl
+  xy.y = (event.pageY || event.clientY) - ost
   return xy
 }
 
@@ -670,53 +769,78 @@ if (Browser == 'IE') {
   Mouse.MIDDLE = 4
 }
 
+Function.prototype.Extenze = function(base, interfaces) {
+    var o = this.prototype;
+    
+    var binit = base.prototype.initialize;
+    //base.prototype.initialize = function() {};
+    this.prototype = new base;
+    //base.prototype.initialize = binit;
+    
+       
+    interfaces = interfaces || [];
+    if(!interfaces.pop && !interfaces.concat)
+       interfaces = [interfaces];
+       
+    for(var n = 0 ; n < interfaces.length ; n++) {
+        var inf = interfaces[n];
+        
+        if(inf.prototype) for(var i in inf.prototype)
+          this.prototype[i] = inf.prototype[i];
+        else for(var i in inf)
+          this.prototype[i] = inf[i];
+    }
+    
+    for(var i in o)
+       this.prototype[i] = o[i];
+       
+    var main_init = this.prototype.initialize;
+    this.prototype.initialize = function() {
+        //binit.apply(this, arguments);
+        for(var i in interfaces) {
+            var a = (interfaces[i].prototype || interfaces[i]);
+            if(a.initialize) a.initialize.apply(this, arguments); 
+        }
+        main_init.apply(this, arguments);
+    };
+
+    for(var i in this.prototype)
+       this[i] = this.prototype[i];
+};
 
 /**
-  Klass is a function that returns a constructor function.
+ * Klass is a function that returns a constructor function.
+ * 
+ * The constructor function calls #initialize with its arguments.
+ * 
+ * The parameters to Klass have their prototypes or themselves merged with the
+ * constructor function's prototype.
+ * 
+ * Finally, the constructor function's prototype is merged with the constructor
+ * function. So you can write Shape.getArea.call(this) instead of
+ * Shape.prototype.getArea.call(this).
+ * 
+ * Shape = Klass({ getArea : function() { raise('No area defined!') } })
+ * 
+ * Rectangle = Klass(Shape, { initialize : function(x, y) { this.x = x this.y =
+ * y },
+ * 
+ * getArea : function() { return this.x * this.y } })
+ * 
+ * Square = Klass(Rectangle, { initialize : function(s) {
+ * Rectangle.initialize.call(this, s, s) } })
+ * 
+ * new Square(5).getArea() //=> 25
+ * 
+ * @return Constructor object for the class
+ */
 
-  The constructor function calls #initialize with its arguments.
-
-  The parameters to Klass have their prototypes or themselves merged with the
-  constructor function's prototype.
-
-  Finally, the constructor function's prototype is merged with the constructor
-  function. So you can write Shape.getArea.call(this) instead of
-  Shape.prototype.getArea.call(this).
-
-  Shape = Klass({
-    getArea : function() {
-      raise('No area defined!')
-    }
-  })
-
-  Rectangle = Klass(Shape, {
-    initialize : function(x, y) {
-      this.x = x
-      this.y = y
-    },
-
-    getArea : function() {
-      return this.x * this.y
-    }
-  })
-
-  Square = Klass(Rectangle, {
-    initialize : function(s) {
-      Rectangle.initialize.call(this, s, s)
-    }
-  })
-
-  new Square(5).getArea()
-  //=> 25
-
-  @return Constructor object for the class
-  */
 Klass = function() {
   var c = function() {
     this.initialize.apply(this, arguments)
   }
   c.ancestors = $A(arguments)
-  c.prototype = {}
+  var prot = c.prototype = {__createdArgs: arguments}
   for(var i = 0; i<arguments.length; i++) {
     var a = arguments[i]
     if (a.prototype) {
@@ -726,13 +850,28 @@ Klass = function() {
     }
   }
   Object.extend(c, c.prototype)
+  c.prototype = prot;
+  
   return c
 }
 
-
+/**
+ * Generic extensible event class that makes custom events a little friendlier.
+ * @constructor
+ * @param {String} type String identifier for event type. 
+ * @param config Values to be copied to the event.
+ */
+function GenericEvent(type, config, bubbles, cancelable) {
+	this.type = type;
+	
+	//this.__proto__.initEvent(type, bubbles || false, cancelable || false);
+    for(var i in config)
+        this[i] = config[i];
+}
+//GenericEvent.prototype = document.createEvent('Events');
+GenericEvent.prototype = Event.prototype;
 
 Curves = {
-
   angularDistance : function(a, b) {
     var pi2 = Math.PI*2
     var d = (b - a) % pi2
@@ -924,19 +1063,22 @@ Curves = {
 
 
 /**
-  Color helper functions.
-  */
+ * Color helper functions.
+ */
 Colors = {
 
   /**
-    Converts an HSL color to its corresponding RGB color.
-
-    @param h Hue in degrees (0 .. 359)
-    @param s Saturation (0.0 .. 1.0)
-    @param l Lightness (0 .. 255)
-    @return The corresponding RGB color as [r,g,b]
-    @type Array
-    */
+     * Converts an HSL color to its corresponding RGB color.
+     * 
+     * @param h
+     *            Hue in degrees (0 .. 359)
+     * @param s
+     *            Saturation (0.0 .. 1.0)
+     * @param l
+     *            Lightness (0 .. 255)
+     * @return The corresponding RGB color as [r,g,b]
+     * @type Array
+     */
   hsl2rgb : function(h,s,l) {
     var r,g,b
     if (s == 0) {
@@ -986,14 +1128,17 @@ Colors = {
   },
 
   /**
-    Converts an HSV color to its corresponding RGB color.
-
-    @param h Hue in degrees (0 .. 359)
-    @param s Saturation (0.0 .. 1.0)
-    @param v Value (0 .. 255)
-    @return The corresponding RGB color as [r,g,b]
-    @type Array
-    */
+     * Converts an HSV color to its corresponding RGB color.
+     * 
+     * @param h
+     *            Hue in degrees (0 .. 359)
+     * @param s
+     *            Saturation (0.0 .. 1.0)
+     * @param v
+     *            Value (0 .. 255)
+     * @return The corresponding RGB color as [r,g,b]
+     * @type Array
+     */
   hsv2rgb : function(h,s,v) {
     var r,g,b
     if (s == 0) {
@@ -1042,23 +1187,18 @@ Colors = {
   },
 
   /**
-    Parses a color style object into one that can be used with the given
-    canvas context.
-
-    Accepted formats:
-      'white'
-      '#fff'
-      '#ffffff'
-      'rgba(255,255,255, 1.0)'
-      [255, 255, 255]
-      [255, 255, 255, 1.0]
-      new Gradient(...)
-      new Pattern(...)
-
-    @param style The color style to parse
-    @param ctx Canvas 2D context on which the style is to be used
-    @return A parsed style, ready to be used as ctx.fillStyle / strokeStyle
-    */
+     * Parses a color style object into one that can be used with the given
+     * canvas context.
+     * 
+     * Accepted formats: 'white' '#fff' '#ffffff' 'rgba(255,255,255, 1.0)' [255,
+     * 255, 255] [255, 255, 255, 1.0] new Gradient(...) new Pattern(...)
+     * 
+     * @param style
+     *            The color style to parse
+     * @param ctx
+     *            Canvas 2D context on which the style is to be used
+     * @return A parsed style, ready to be used as ctx.fillStyle / strokeStyle
+     */
   parseColorStyle : function(style, ctx) {
     if (typeof style == 'string') {
       return style
@@ -1081,39 +1221,64 @@ Colors = {
   }
 }
 
+CanvasRenderingContext2D.prototype.setFillStyle = function(fs) { this.fillStyle = fs };
+CanvasRenderingContext2D.prototype.setStrokeStyle = function(ss) { this.strokeStyle = ss };
+CanvasRenderingContext2D.prototype.setGlobalAlpha = function(ga) { this.globalAlpha = ga };
+CanvasRenderingContext2D.prototype.setLineWidth = function(lw) { this.lineWidth = lw };
+CanvasRenderingContext2D.prototype.setLineCap = function(lw) { this.lineCap = lw };
+CanvasRenderingContext2D.prototype.setLineJoin = function(lw) { this.lineJoin = lw };
+CanvasRenderingContext2D.prototype.setMiterLimit = function(lw) { this.miterLimit = lw };
+CanvasRenderingContext2D.prototype.setGlobalCompositeOperation = function(lw) {
+  this.globalCompositeOperation = lw
+};
+CanvasRenderingContext2D.prototype.setShadowColor = function(x) { this.shadowColor = x };
+CanvasRenderingContext2D.prototype.setShadowBlur = function(x) { this.shadowBlur = x };
+CanvasRenderingContext2D.prototype.setShadowOffsetX = function(x) { this.shadowOffsetX = x };
+CanvasRenderingContext2D.prototype.setShadowOffsetY = function(x) { this.shadowOffsetY = x };
+CanvasRenderingContext2D.prototype.setMozTextStyle = function(x) { this.mozTextStyle = x };
+CanvasRenderingContext2D.prototype.setFont = function(x) { this.font = x };
+CanvasRenderingContext2D.prototype.setTextAlign = function(x) { this.textAlign = x };
+CanvasRenderingContext2D.prototype.setTextBaseline = function(x) { this.textBaseline = x };
+CanvasRenderingContext2D.prototype.identity = function() {
+  CanvasSupport.setTransform(this, [1,0,0,1,0,0])
+}
 
+CanvasRenderingContext2D.prototype.lastProgram = null;
+CanvasRenderingContext2D.prototype.lastColor = null;
+CanvasRenderingContext2D.prototype.lastImage = null;
+CanvasRenderingContext2D.prototype.program = null;
 
 /**
-  Navigating around differing implementations of canvas features.
-
-  Current issues:
-
-  isPointInPath(x,y):
-
-    Opera supports isPointInPath.
-
-    Safari doesn't have isPointInPath. So you need to keep track of the CTM and
-    do your own in-fill-checking. Which is done for circles and rectangles
-    in Circle#isPointInPath and Rectangle#isPointInPath.
-    Paths use an inaccurate bounding box test, implemented in
-    Path#isPointInPath.
-
-    Firefox 3 has isPointInPath. But it uses user-space coordinates.
-    Which can be easily navigated around because it has setTransform.
-
-    Firefox 2 has isPointInPath. But it uses user-space coordinates.
-    And there's no setTransform, so you need to keep track of the CTM and
-    multiply the mouse vector with the CTM's inverse.
-
-  Drawing text:
-
-    Rhino has ctx.drawString(x,y, text)
-
-    Firefox has ctx.mozDrawText(text)
-
-    The WhatWG spec, Safari and Opera have nothing.
-
-*/
+ * Navigating around differing implementations of canvas features.
+ * 
+ * Current issues:
+ * 
+ * isPointInPath(x,y):
+ * 
+ * Opera supports isPointInPath.
+ * 
+ * Safari doesn't have isPointInPath. So you need to keep track of the CTM and
+ * do your own in-fill-checking. Which is done for circles and rectangles in
+ * Circle#isPointInPath and Rectangle#isPointInPath. Paths use an inaccurate
+ * bounding box test, implemented in Path#isPointInPath.
+ * 
+ * Firefox 3 has isPointInPath. But it uses user-space coordinates. Which can be
+ * easily navigated around because it has setTransform.
+ * 
+ * Firefox 2 has isPointInPath. But it uses user-space coordinates. And there's
+ * no setTransform, so you need to keep track of the CTM and multiply the mouse
+ * vector with the CTM's inverse.
+ * 
+ * Drawing text:
+ * 
+ * Rhino has ctx.drawString(x,y, text)
+ * 
+ * Firefox has ctx.mozDrawText(text)
+ * 
+ * The WhatWG spec, Safari and Opera have nothing.
+ * 
+ * @namespace
+ */
 CanvasSupport = {
   DEVICE_SPACE : 0, // Opera
   USER_SPACE : 1,   // Fx2, Fx3
@@ -1135,7 +1300,7 @@ CanvasSupport = {
     if (this.supportsCSSTransform == null) {
       var e = E('div')
       var dbs = e.style
-      var s = (dbs.webkitTransform != null || dbs.MozTransform != null)
+      var s = (dbs.webkitTransform != null || dbs.mozTransform != null)
       this.supportsCSSTransform = (s != null)
     }
     return this.supportsCSSTransform
@@ -1162,12 +1327,13 @@ CanvasSupport = {
 
   getSoundObject : function() {
     var e = null
-//     if (this.getSupportsAudioTag()) {
-//       e = this.getAudioTagSoundObject()
-//     } else
-    if (this.getSupportsSoundManager()) {
+     //TODO: why was this disabled?
+     if (this.getSupportsAudioTag()) {
+       e = this.getAudioTagSoundObject()
+     } else if (this.getSupportsSoundManager()) {
       e = this.getSoundManagerSoundObject()
     }
+    
     return e
   },
 
@@ -1235,61 +1401,39 @@ CanvasSupport = {
     return e
   },
 
-  /**
-    Canvas context augment module that adds setters.
-    */
-  ContextSetterAugment : {
-    setFillStyle : function(fs) { this.fillStyle = fs },
-    setStrokeStyle : function(ss) { this.strokeStyle = ss },
-    setGlobalAlpha : function(ga) { this.globalAlpha = ga },
-    setLineWidth : function(lw) { this.lineWidth = lw },
-    setLineCap : function(lw) { this.lineCap = lw },
-    setLineJoin : function(lw) { this.lineJoin = lw },
-    setMiterLimit : function(lw) { this.miterLimit = lw },
-    setGlobalCompositeOperation : function(lw) {
-      this.globalCompositeOperation = lw
-    },
-    setShadowColor : function(x) { this.shadowColor = x },
-    setShadowBlur : function(x) { this.shadowBlur = x },
-    setShadowOffsetX : function(x) { this.shadowOffsetX = x },
-    setShadowOffsetY : function(x) { this.shadowOffsetY = x },
-    setMozTextStyle : function(x) { this.mozTextStyle = x },
-    setFont : function(x) { this.font = x },
-    setTextAlign : function(x) { this.textAlign = x },
-    setTextBaseline : function(x) { this.textBaseline = x }
-  },
 
-  ContextJSImplAugment : {
-    identity : function() {
-      CanvasSupport.setTransform(this, [1,0,0,1,0,0])
-    }
-  },
 
   /**
-    Augments a canvas context with setters.
-    */
+     * Augments a canvas context with setters.
+     * 
+     * @return {CanvasRenderingContext2D}
+     */
   augment : function(ctx) {
-    Object.conditionalExtend(ctx, this.ContextSetterAugment)
-    Object.conditionalExtend(ctx, this.ContextJSImplAugment)
+    //Object.conditionalExtend(ctx,  new ContextSetterAugment)
     return ctx
   },
 
   /**
-    Gets the augmented context for canvas.
-    */
+     * Gets the augmented context for canvas.
+     * 
+     * @return {CanvasRenderingContext2D}
+     */
   getContext : function(canvas, type) {
+  	if(canvas.__savedContext) return canvas.__savedContext;
+  	
     var ctx = canvas.getContext(type || '2d')
     this.augment(ctx)
+    canvas.__savedContext = ctx;
     return ctx
   },
 
 
   /**
-    Multiplies two 3x2 affine 2D column-major transformation matrices with
-    each other and stores the result in the first matrix.
-
-    Returns the multiplied matrix m1.
-    */
+     * Multiplies two 3x2 affine 2D column-major transformation matrices with
+     * each other and stores the result in the first matrix.
+     * 
+     * Returns the multiplied matrix m1.
+     */
   tMatrixMultiply : function(m1, m2) {
     var m11 = m1[0]*m2[0] + m1[2]*m2[1]
     var m12 = m1[1]*m2[0] + m1[3]*m2[1]
@@ -1311,8 +1455,8 @@ CanvasSupport = {
   },
 
   /**
-    Multiplies the vector [x, y, 1] with the 3x2 transformation matrix m.
-    */
+     * Multiplies the vector [x, y, 1] with the 3x2 transformation matrix m.
+     */
   tMatrixMultiplyPoint : function(m, x, y) {
     return [
       x*m[0] + y*m[2] + m[4],
@@ -1321,10 +1465,10 @@ CanvasSupport = {
   },
 
   /**
-    Inverts a 3x2 affine 2D column-major transformation matrix.
-
-    Returns an inverted copy of the matrix.
-    */
+     * Inverts a 3x2 affine 2D column-major transformation matrix.
+     * 
+     * Returns an inverted copy of the matrix.
+     */
   tInvertMatrix : function(m) {
     var d = 1 / (m[0]*m[3]-m[1]*m[2])
     return [
@@ -1335,8 +1479,8 @@ CanvasSupport = {
   },
 
   /**
-    Applies a transformation matrix m on the canvas context ctx.
-    */
+     * Applies a transformation matrix m on the canvas context ctx.
+     */
   transform : function(ctx, m) {
     if (ctx.transform)
       return ctx.transform.apply(ctx, m)
@@ -1394,15 +1538,15 @@ CanvasSupport = {
 
 
   svdTransform : (function(){
-    //   Copyright (c) 2004-2005, The Dojo Foundation
-    //   All Rights Reserved
+    // Copyright (c) 2004-2005, The Dojo Foundation
+    // All Rights Reserved
     var m = {}
     m.Matrix2D = function(arg){
       // summary: a 2D matrix object
       // description: Normalizes a 2D matrix-like object. If arrays is passed,
-      //    all objects of the array are normalized and multiplied sequentially.
+      // all objects of the array are normalized and multiplied sequentially.
       // arg: Object
-      //    a 2D matrix-like object, a number, or an array of such objects
+      // a 2D matrix-like object, a number, or an array of such objects
       if(arg){
         if(typeof arg == "number"){
           this.xx = this.yy = arg;
@@ -1431,14 +1575,16 @@ CanvasSupport = {
     m.normalize = function(matrix){
         // summary: converts an object to a matrix, if necessary
         // description: Converts any 2D matrix-like object or an array of
-        //    such objects to a valid dojox.gfx.matrix.Matrix2D object.
-        // matrix: Object: an object, which is converted to a matrix, if necessary
+        // such objects to a valid dojox.gfx.matrix.Matrix2D object.
+        // matrix: Object: an object, which is converted to a matrix, if
+        // necessary
         return (matrix instanceof m.Matrix2D) ? matrix : new m.Matrix2D(matrix); // dojox.gfx.matrix.Matrix2D
     }
     m.multiply = function(matrix){
-      // summary: combines matrices by multiplying them sequentially in the given order
+      // summary: combines matrices by multiplying them sequentially in the
+        // given order
       // matrix: dojox.gfx.matrix.Matrix2D...: a 2D matrix-like object,
-      //    all subsequent arguments are matrix-like objects too
+      // all subsequent arguments are matrix-like objects too
       var M = m.normalize(matrix);
       // combine matrices
       for(var i = 1; i < arguments.length; ++i){
@@ -1538,7 +1684,8 @@ CanvasSupport = {
     };
 
     var decomposeSR = function(/* dojox.gfx.matrix.Matrix2D */ M, /* Object */ result){
-      // summary: decomposes a matrix into [scale, rotate]; no checks are done.
+      // summary: decomposes a matrix into [scale, rotate]; no checks are
+        // done.
       var sign = scaleSign(M),
         a = result.angle1 = (Math.atan2(M.yx, M.yy) + Math.atan2(-sign * M.xy, sign * M.xx)) / 2,
         cos = Math.cos(a), sin = Math.sin(a);
@@ -1558,11 +1705,13 @@ CanvasSupport = {
     };
 
     return function(matrix){
-      // summary: decompose a 2D matrix into translation, scaling, and rotation components
-      // description: this function decompose a matrix into four logical components:
-      //  translation, rotation, scaling, and one more rotation using SVD.
-      //  The components should be applied in following order:
-      //  | [translate, rotate(angle2), scale, rotate(angle1)]
+      // summary: decompose a 2D matrix into translation, scaling, and
+        // rotation components
+      // description: this function decompose a matrix into four logical
+        // components:
+      // translation, rotation, scaling, and one more rotation using SVD.
+      // The components should be applied in following order:
+      // | [translate, rotate(angle2), scale, rotate(angle1)]
       // matrix: dojox.gfx.matrix.Matrix2D: a 2D matrix-like object
       var M = m.normalize(matrix),
         result = {dx: M.dx, dy: M.dy, sx: 1, sy: 1, angle1: 0, angle2: 0};
@@ -1597,33 +1746,34 @@ CanvasSupport = {
 
 
   /**
-    Sets the canvas context ctx's transformation matrix to m, with ctm being
-    the current transformation matrix.
-    */
+     * Sets the canvas context ctx's transformation matrix to m, with ctm being
+     * the current transformation matrix.
+     */
   setTransform : function(ctx, m, ctm) {
     if (ctx.setTransform)
-      return ctx.setTransform.apply(ctx, m)
+      //return ctx.setTransform.apply(ctx, m)
+      return ctx.setTransform(m[0],m[1],m[2],m[3],m[4],m[5]);
     this.transform(ctx, this.tInvertMatrix(ctm))
     this.transform(ctx, m)
   },
 
   /**
-    Skews the canvas context by angle on the x-axis.
-    */
+     * Skews the canvas context by angle on the x-axis.
+     */
   skewX : function(ctx, angle) {
     return this.transform(ctx, this.tSkewXMatrix(angle))
   },
 
   /**
-    Skews the canvas context by angle on the y-axis.
-    */
+     * Skews the canvas context by angle on the y-axis.
+     */
   skewY : function(ctx, angle) {
     return this.transform(ctx, this.tSkewYMatrix(angle))
   },
 
   /**
-    Rotates a transformation matrix by angle.
-    */
+     * Rotates a transformation matrix by angle.
+     */
   tRotate : function(m1, angle) {
     // return this.tMatrixMultiply(matrix, this.tRotationMatrix(angle))
     var c = Math.cos(angle)
@@ -1640,8 +1790,8 @@ CanvasSupport = {
   },
 
   /**
-    Translates a transformation matrix by x and y.
-    */
+     * Translates a transformation matrix by x and y.
+     */
   tTranslate : function(m1, x, y) {
     // return this.tMatrixMultiply(matrix, this.tTranslationMatrix(x,y))
     m1[4] += m1[0]*x + m1[2]*y
@@ -1650,8 +1800,8 @@ CanvasSupport = {
   },
 
   /**
-    Scales a transformation matrix by sx and sy.
-    */
+     * Scales a transformation matrix by sx and sy.
+     */
   tScale : function(m1, sx, sy) {
     // return this.tMatrixMultiply(matrix, this.tScalingMatrix(sx,sy))
     m1[0] *= sx
@@ -1662,36 +1812,36 @@ CanvasSupport = {
   },
 
   /**
-    Skews a transformation matrix by angle on the x-axis.
-    */
+     * Skews a transformation matrix by angle on the x-axis.
+     */
   tSkewX : function(m1, angle) {
     return this.tMatrixMultiply(m1, this.tSkewXMatrix(angle))
   },
 
   /**
-    Skews a transformation matrix by angle on the y-axis.
-    */
+     * Skews a transformation matrix by angle on the y-axis.
+     */
   tSkewY : function(m1, angle) {
     return this.tMatrixMultiply(m1, this.tSkewYMatrix(angle))
   },
 
   /**
-    Returns a 3x2 2D column-major y-skew matrix for the angle.
-    */
+     * Returns a 3x2 2D column-major y-skew matrix for the angle.
+     */
   tSkewXMatrix : function(angle) {
     return [ 1, 0, Math.tan(angle), 1, 0, 0 ]
   },
 
   /**
-    Returns a 3x2 2D column-major y-skew matrix for the angle.
-    */
+     * Returns a 3x2 2D column-major y-skew matrix for the angle.
+     */
   tSkewYMatrix : function(angle) {
     return [ 1, Math.tan(angle), 0, 1, 0, 0 ]
   },
 
   /**
-    Returns a 3x2 2D column-major rotation matrix for the angle.
-    */
+     * Returns a 3x2 2D column-major rotation matrix for the angle.
+     */
   tRotationMatrix : function(angle) {
     var c = Math.cos(angle)
     var s = Math.sin(angle)
@@ -1699,47 +1849,43 @@ CanvasSupport = {
   },
 
   /**
-    Returns a 3x2 2D column-major translation matrix for x and y.
-    */
+     * Returns a 3x2 2D column-major translation matrix for x and y.
+     */
   tTranslationMatrix : function(x, y) {
     return [ 1, 0, 0, 1, x, y ]
   },
 
   /**
-    Returns a 3x2 2D column-major scaling matrix for sx and sy.
-    */
+     * Returns a 3x2 2D column-major scaling matrix for sx and sy.
+     */
   tScalingMatrix : function(sx, sy) {
     return [ sx, 0, 0, sy, 0, 0 ]
   },
 
   /**
-    Returns the name of the text backend to use.
-
-    Possible values are:
-      * 'MozText' for Firefox
-      * 'DrawString' for Rhino
-      * 'NONE' no text drawing
-
-    @return The text backend name
-    @type String
-    */
+     * Returns the name of the text backend to use.
+     * 
+     * Possible values are: 'MozText' for Firefox 'DrawString' for Rhino 'NONE'
+     * no text drawing
+     * 
+     * @return The text backend name
+     * @type String
+     */
   getTextBackend : function() {
-    if (this.textBackend == null)
+    if (!this.textBackend)
       this.textBackend = this.detectTextBackend()
     return this.textBackend
   },
 
   /**
-    Detects the name of the text backend to use.
-
-    Possible values are:
-      * 'MozText' for Firefox
-      * 'DrawString' for Rhino
-      * 'NONE' no text drawing
-
-    @return The text backend name
-    @type String
-    */
+     * Detects the name of the text backend to use.
+     * 
+     * Possible values are: 'MozText' for Firefox 'DrawString' for Rhino 'NONE'
+     * no text drawing
+     * 
+     * @return The text backend name
+     * @type String
+     */
   detectTextBackend : function() {
     var ctx = this.getTestContext()
     if (ctx.fillText) {
@@ -1776,12 +1922,12 @@ CanvasSupport = {
   },
 
   /**
-    Returns true if the browser can be coaxed to work with
-    {@link CanvasSupport.isPointInPath}.
-
-    @return Whether the browser supports isPointInPath or not
-    @type boolean
-    */
+     * Returns true if the browser can be coaxed to work with
+     * {@link CanvasSupport.isPointInPath}.
+     * 
+     * @return Whether the browser supports isPointInPath or not
+     * @type boolean
+     */
   getSupportsIsPointInPath : function() {
     if (this.supportsIsPointInPath == null)
       this.supportsIsPointInPath = !!this.getTestContext().isPointInPath
@@ -1789,12 +1935,12 @@ CanvasSupport = {
   },
 
   /**
-    Returns the coordinate system in which the isPointInPath of the
-    browser operates. Possible coordinate systems are
-    CanvasSupport.DEVICE_SPACE and CanvasSupport.USER_SPACE.
-
-    @return The coordinate system for the browser's isPointInPath
-    */
+     * Returns the coordinate system in which the isPointInPath of the browser
+     * operates. Possible coordinate systems are CanvasSupport.DEVICE_SPACE and
+     * CanvasSupport.USER_SPACE.
+     * 
+     * @return The coordinate system for the browser's isPointInPath
+     */
   getIsPointInPathMode : function() {
     if (this.isPointInPathMode == null)
       this.isPointInPathMode = this.detectIsPointInPathMode()
@@ -1802,13 +1948,13 @@ CanvasSupport = {
   },
 
   /**
-    Detects the coordinate system in which the isPointInPath of the
-    browser operates. Possible coordinate systems are
-    CanvasSupport.DEVICE_SPACE and CanvasSupport.USER_SPACE.
-
-    @return The coordinate system for the browser's isPointInPath
-    @private
-    */
+     * Detects the coordinate system in which the isPointInPath of the browser
+     * operates. Possible coordinate systems are CanvasSupport.DEVICE_SPACE and
+     * CanvasSupport.USER_SPACE.
+     * 
+     * @return The coordinate system for the browser's isPointInPath
+     * @private
+     */
   detectIsPointInPathMode : function() {
     var ctx = this.getTestContext()
     var rv
@@ -1828,23 +1974,30 @@ CanvasSupport = {
   },
 
   /**
-    Returns true if the device-space point (x,y) is inside the fill of
-    ctx's current path.
-
-    @param ctx Canvas 2D context to query
-    @param x The distance in pixels from the left side of the canvas element
-    @param y The distance in pixels from the top side of the canvas element
-    @param matrix The current transformation matrix. Needed if the browser has
-                  no isPointInPath or the browser's isPointInPath works in
-                  user-space coordinates and the browser doesn't support
-                  setTransform.
-    @param callbackObj If the browser doesn't support isPointInPath,
-                       callbackObj.isPointInPath will be called with the
-                       x,y-coordinates transformed to user-space.
-    @param
-    @return Whether (x,y) is inside ctx's current path or not
-    @type boolean
-    */
+     * Returns true if the device-space point (x,y) is inside the fill of ctx's
+     * current path.
+     * 
+     * @function
+     * @param ctx
+     *            Canvas 2D context to query
+     * @param x
+     *            The distance in pixels from the left side of the canvas
+     *            element
+     * @param y
+     *            The distance in pixels from the top side of the canvas element
+     * @param matrix
+     *            The current transformation matrix. Needed if the browser has
+     *            no isPointInPath or the browser's isPointInPath works in
+     *            user-space coordinates and the browser doesn't support
+     *            setTransform.
+     * @param callbackObj
+     *            If the browser doesn't support isPointInPath,
+     *            callbackObj.isPointInPath will be called with the
+     *            x,y-coordinates transformed to user-space.
+     * @param
+     * @return {boolean }Whether (x,y) is inside ctx's current path or not
+     * 
+     */
   isPointInPath : function(ctx, x, y, matrix, callbackObj) {
     var rv
     if (!ctx.isPointInPath) {
@@ -1879,7 +2032,7 @@ RecordingContext = Klass({
   commands : [],
   isMockObject : true,
 
-  initialize : function(commands) {
+  /** @override */ initialize : function(commands) {
     this.commands = commands || []
     Object.conditionalExtend(this, this.getMockContext())
   },
@@ -1957,7 +2110,7 @@ RecordingContext = Klass({
   MockGradient : Klass({
     isMockObject : true,
 
-    initialize : function(recorder, id) {
+    /** @override */ initialize : function(recorder, id) {
       this.recorder = recorder
       this.id = id
     },
@@ -1994,53 +2147,205 @@ RecordingContext.play = function(ctx, commands) {
 }
 
 
+/**
+ * 
+ * Transformable object.
+ * 
+ * 
+ * @constructor
+ * 
+ * @property scale null, an array [sX,sY] or scalar
+ */
+function Transformable() {
+	Transformable.prototype.initialize.apply(this, arguments);
+}
 
-
-Transformable = Klass({
+Transformable.prototype = {
+	
   needMatrixUpdate : true,
+  
+  currentMatrix: null,
+  relativeMatrix: null,
+  previousMatrix: null,
+  fixedRelativeMatrix: null,
+  absoluteMatrix: null,
+  matrix: null,
+  lastTransList: null,
+  mNum: 0,
+  pmNum: 0,
+  mvpMatrix: null,
+  omvpMatrix: null,
+  parentMatrixUpdated: false,
+  
+  /** @type number */
+  x: 0,
+  /** @type number */
+  y: 0,
+  scale: null,
+  /** @type number */
+  skewX: 0,
+  /** @type number */
+  skewY: 0,
+  /** @type number */
+  rotation: 0,
+  transformList: null,
+  
+  initialize: function() {
+	this.currentMatrix = [1,0,0,1,0,0];
+	this.relativeMatrix = null;
+	this.previousMatrix = null;
+	this.fixedRelativeMatrix = null;
+	this.absoluteMatrix = null;
+	this.matrix = null;
+	this.lastTransList = null;
+	this.needMatrixUpdate = true;
+	this.mNum = 0;
+	this.pmNum = 0;
+	
+	this.x = 0;
+	this.y = 0;
+	this.scale = null;
+	this.skewX = null;
+	this.skewY = null;
+	this.rotation = null;
+	this.transformList = null;
+  },
 
   /**
-    Transforms the context state according to this node's attributes.
-
-    @param ctx Canvas 2D context
-    */
-  transform : function(ctx) {
-    var atm = this.absoluteMatrix
-    var xy = this.x || this.y
-    var rot = this.rotation
-    var sca = this.scale != null
-    var skX = this.skewX
-    var skY = this.skewY
-    var tm = this.matrix
-    var tl = this.transformList
+     * Transforms the context state according to this node's attributes.
+     * 
+     * @param ctx
+     *            Canvas 2D context
+     */
+  __transform : function(ctx) {
+    var trans_isdif = false;
+    
+    if(this.needMatrixUpdate === true || this.lastTransList === null) {
+    	var atm = this.absoluteMatrix;
+	    var rot = this.rotation;
+	    //var sca = this.scale != null;
+	    var skX = this.skewX;
+	    var skY = this.skewY;
+	    var tm = this.matrix;
+	    var tl = this.transformList;
+	  
+    	var cur_list = [this.x,this.y,rot,this.scale,skX,skY];//,tm,tl];
+        var last = this.lastTransList;
+    
+	    if(last !== null) {
+	    	for(var i = 0 ; i < cur_list.length ; i++)
+	    		if(last[i] !== cur_list[i]) {
+	    			trans_isdif = true;
+	    			break;
+	    		}
+	    } else trans_isdif = true;
+	    
+	    this.lastTransList = cur_list;
+    }
 
     // update the node's transformation matrix
-    if (this.needMatrixUpdate || !this.currentMatrix) {
-      if (!this.currentMatrix) this.currentMatrix = [1,0,0,1,0,0]
-      if (this.parent)
-        this.__copyMatrix(this.parent.currentMatrix)
-      else
-        this.__identityMatrix()
-      if (atm) this.__setMatrixMatrix(this.absoluteMatrix)
-      if (xy) this.__translateMatrix(this.x, this.y)
-      if (rot) this.__rotateMatrix(this.rotation)
-      if (skX) this.__skewXMatrix(this.skewX)
-      if (skY) this.__skewYMatrix(this.skewY)
-      if (sca) this.__scaleMatrix(this.scale)
-      if (tm) this.__matrixMatrix(this.matrix)
-      if (tl) {
-        for (var i=0; i<this.transformList.length; i++) {
-          var tl = this.transformList[i]
-          this['__'+tl[0]+'Matrix'](tl[1])
-        }
+    if (trans_isdif === true || this.parentMatrixUpdated === true || this.currentMatrix === null) {
+      if (this.currentMatrix === null) this.currentMatrix = [1,0,0,1,0,0];
+      if (this.relativeMatrix === null) this.relativeMatrix = [1,0,0,1,0,0];
+      if (this.previousMatrix === null) this.previousMatrix = [1,0,0,1,0,0];
+
+	  if(trans_isdif) {
+		  this.__transform_rel();
+		  //this.root.numRelMatrixUpdates++;
+	  }
+
+      this.__compound_rel();
+ 
+  	  this.isDirty = true;
+      //this.mNum++;
+      this.mvpMatrix = null;
+      this.lastAABB = null;
+      //this.needsDOMUpdate = true;
+
+      for(var i = 0 ; i < this.childNodes.length ; i++)  {
+          this.childNodes[i].parentMatrixUpdated = true;
+          this.childNodes[i].needMatrixUpdate = true;
+          //this.childNodes[i].transform(null, true);
       }
-      this.needMatrixUpdate = false
+      
+      //this.root.numMatrixUpdates++;
+      this.needMatrixUpdate = false;
+      this.parentMatrixUpdated = false;
     }
+    
+    this.needMatrixUpdate = false;
 
     if (!ctx) return
 
-    // transform matrix modifiers
     this.__setMatrix(ctx, this.currentMatrix)
+  },
+  
+  __transform_rel: function() {
+	  var atm = this.absoluteMatrix;
+	  var xy = this.x !== 0 || this.y !== 0;
+	  var rot = this.rotation;
+	  var sca = this.scale;
+	  var skX = this.skewX;
+	  var skY = this.skewY;
+	  var tm = this.matrix;
+	  var tl = this.transformList;
+
+      var p = this.previousMatrix
+      var c = this.currentMatrix
+      p[0] = c[0]
+      p[1] = c[1]
+      p[2] = c[2]
+      p[3] = c[3]
+      p[4] = c[4]
+      p[5] = c[5]
+      
+      // swap temporarily
+      var cm = this.currentMatrix;
+      this.currentMatrix = this.relativeMatrix;
+        
+      if(this.fixedRelativeMatrix) {
+          this.__setMatrixMatrix(this.fixedRelativeMatrix);
+      } else {
+          this.__identityMatrix()
+            
+          // if (atm) this.__setMatrixMatrix(this.absoluteMatrix)
+          if (xy !== false) this.__translateMatrix(this.x, this.y)
+          if (rot !== null) this.__rotateMatrix(rot)
+          if (skX !== null) this.__skewXMatrix(skX)
+          if (skY !== null) this.__skewYMatrix(skY)
+          if (sca !== null) this.__scaleMatrix(sca)
+          if (tm !== null) this.__matrixMatrix(tm)
+
+          if (tl !== null) {
+            for (var i=0; i<this.transformList.length; i++) {
+             var tl = this.transformList[i]
+              this['__'+tl[0]+'Matrix'](tl[1])
+            }
+          }
+      }
+      
+      //for(var i in this.childNodes)
+      //  this.childNodes[i].changed = true;
+      
+      // swap back
+      this.currentMatrix = cm;
+  },
+  
+  __compound_rel: function() {
+      var atm = this.absoluteMatrix;
+  	  if (this.parent) {
+  	  	if(!this.parent.currentMatrix) return;
+        this.__copyMatrix(this.parent.currentMatrix)
+  	  } else
+        this.__identityMatrix()
+      
+      if(atm)
+        this.__copyMatrix(atm)
+        
+      this.__matrixMatrix(this.relativeMatrix);
+
+      //for(var i in this.childNodes)
+      //  this.childNodes[i].needMatrixUpdate = true;
   },
 
   distanceTo : function(node) {
@@ -2054,15 +2359,11 @@ Transformable = Klass({
 
 
   __setMatrixMatrix : function(matrix) {
-    if (!this.previousMatrix) this.previousMatrix = []
-    var p = this.previousMatrix
-    var c = this.currentMatrix
-    p[0] = c[0]
-    p[1] = c[1]
-    p[2] = c[2]
-    p[3] = c[3]
-    p[4] = c[4]
-    p[5] = c[5]
+    /*
+     * if (!this.previousMatrix) this.previousMatrix = [] var p =
+     * this.previousMatrix var c = this.currentMatrix p[0] = c[0] p[1] = c[1]
+     * p[2] = c[2] p[3] = c[3] p[4] = c[4] p[5] = c[5]
+     */
     p = this.currentMatrix
     c = matrix
     p[0] = c[0]
@@ -2095,16 +2396,18 @@ Transformable = Klass({
   },
 
   __translateMatrix : function(x, y) {
-    if (x.length) {
+    if (arguments.length == 1) {
       CanvasSupport.tTranslate( this.currentMatrix, x[0], x[1] )
+      //this.currentMatrix.translate(x[0], y[1]);
     } else {
       CanvasSupport.tTranslate( this.currentMatrix, x, y )
+      //this.currentMatrix.translate(x, y);
     }
   },
 
   __rotateMatrix : function(rotation) {
-    if (rotation.length) {
-      if (rotation[0] % Math.PI*2 == 0) return
+    if (typeof(rotation) != 'number' && rotation.length) {
+      //if (rotation[0] % (Math.PI*2) == 0) return
       if (rotation[1] || rotation[2]) {
         CanvasSupport.tTranslate( this.currentMatrix,
                                   rotation[1], rotation[2] )
@@ -2115,16 +2418,19 @@ Transformable = Klass({
         CanvasSupport.tRotate( this.currentMatrix, rotation[0] )
       }
     } else {
-      if (rotation % Math.PI*2 == 0) return
+      if (rotation === 0) return
       CanvasSupport.tRotate( this.currentMatrix, rotation )
+      //this.currentMatrix.rotate(rotation);
     }
   },
 
   __skewXMatrix : function(skewX) {
     if (skewX.length && skewX[0])
       CanvasSupport.tSkewX(this.currentMatrix, skewX[0])
+      
     else
       CanvasSupport.tSkewX(this.currentMatrix, skewX)
+      
   },
 
   __skewYMatrix : function(skewY) {
@@ -2158,11 +2464,34 @@ Transformable = Klass({
   },
 
   __matrixMatrix : function(matrix) {
-    CanvasSupport.tMatrixMultiply(this.currentMatrix, matrix)
+    //CanvasSupport.tMatrixMultiply(this.currentMatrix, matrix)
+    var m1 = this.currentMatrix;
+    var m2 = matrix;
+    
+    var m11 = m1[0]*m2[0] + m1[2]*m2[1]
+    var m12 = m1[1]*m2[0] + m1[3]*m2[1]
+
+    var m21 = m1[0]*m2[2] + m1[2]*m2[3]
+    var m22 = m1[1]*m2[2] + m1[3]*m2[3]
+
+    var dx = m1[0]*m2[4] + m1[2]*m2[5] + m1[4]
+    var dy = m1[1]*m2[4] + m1[3]*m2[5] + m1[5]
+
+    m1[0] = m11
+    m1[1] = m12
+    m1[2] = m21
+    m1[3] = m22
+    m1[4] = dx
+    m1[5] = dy
   },
 
   __setMatrix : function(ctx, matrix) {
-    CanvasSupport.setTransform(ctx, matrix, this.previousMatrix)
+  	var m = matrix;
+  	if (ctx.setTransform)
+      //return ctx.setTransform.apply(ctx, m)
+      return ctx.setTransform(m[0],m[1],m[2],m[3],m[4],m[5]);
+    else
+      CanvasSupport.setTransform(ctx, matrix, this.previousMatrix);
   },
 
   __translate : function(ctx, x,y) {
@@ -2175,7 +2504,7 @@ Transformable = Klass({
   __rotate : function(ctx, rotation) {
     if (rotation.length) {
       if (rotation[1] || rotation[2]) {
-        if (rotation[0] % Math.PI*2 == 0) return
+        if (rotation[0] % (Math.PI*2) == 0) return
         ctx.translate( rotation[1], rotation[2] )
         ctx.rotate( rotation[0] )
         ctx.translate( -rotation[1], -rotation[2] )
@@ -2220,27 +2549,24 @@ Transformable = Klass({
   __matrix : function(ctx, matrix) {
     CanvasSupport.transform(ctx, matrix)
   }
-
-})
+};
+Profiler.wrap_class(Transformable, "Transformable");
 
 
 /**
-  Timeline is an animator that tweens between its frames.
-
-  When object.time = k.time:
-       object.state = k.state
-  When object.time > k[i-1].time and object.time < k[i].time:
-       object.state = k[i].tween(position, k[i-1].state, k[i].state)
-       where position = elapsed / duration,
-             elapsed = object.time - k[i-1].time,
-             duration = k[i].time - k[i-1].time
-  */
+ * Timeline is an animator that tweens between its frames.
+ * 
+ * When object.time = k.time: object.state = k.state When object.time >
+ * k[i-1].time and object.time < k[i].time: object.state = k[i].tween(position,
+ * k[i-1].state, k[i].state) where position = elapsed / duration, elapsed =
+ * object.time - k[i-1].time, duration = k[i].time - k[i-1].time
+ */
 Timeline = Klass({
   startTime : null,
   repeat : false,
   lastAction : 0,
 
-  initialize : function(repeat, pingpong) {
+  /** @override */ initialize : function(repeat, pingpong) {
     this.repeat = repeat
     this.keyframes = []
   },
@@ -2302,33 +2628,68 @@ Timeline = Klass({
 
 })
 
-
-Animatable = Klass({
+/**
+ * Animatable class
+ * 
+ * @constructor
+ * @interface
+ */
+function Animatable() {
+    Animatable.prototype.initialize.apply(this, arguments);  
+}
+Animatable.prototype = {
+  /**
+   * These are the available functions for the tween parameter of animate. They are
+   * useable as strings or function references.
+   * 
+   * @namespace
+   */
   tweenFunctions : {
+  	/**
+  	 * return v
+  	 */
     linear : function(v) { return v },
 
+    /** 
+     * return Math.floor(v) 
+     * @static */
     set : function(v) { return Math.floor(v) },
+    /** 
+     * return Math.floor(v) 
+     * @static */
     discrete : function(v) { return Math.floor(v) },
 
+    /**
+     * return 0.5-0.5*Math.cos(v*Math.PI) 
+     * @static */
     sine : function(v) { return 0.5-0.5*Math.cos(v*Math.PI) },
 
+    /** 
+     * (0.5-0.5*Math.cos(v*3.59261946538606)) * 1.05263157894737; 
+     * @static */
     sproing : function(v) {
-      return (0.5-0.5*Math.cos(v*3.59261946538606)) * 1.05263157894737
+      return (0.5-0.5*Math.cos(v*3.59261946538606)) * 1.05263157894737;
       // pi + pi-acos(0.9)
     },
 
+    /** @static */
     square : function(v) {
       return v*v
     },
 
+    /** @static */
     cube : function(v) {
       return v*v*v
     },
 
+    /** @static */
     sqrt : function(v) {
       return Math.sqrt(v)
     },
 
+    /** 
+     * return Math.pow(v, -0.333333333333)
+     * @static */
     curt : function(v) {
       return Math.pow(v, -0.333333333333)
     }
@@ -2342,10 +2703,25 @@ Animatable = Klass({
     this.pendingTimelineEvents = []
     this.timelines = []
     this.animators = []
-    this.addFrameListener(this.updateTimelines)
-    this.addFrameListener(this.updateKeyframes)
-    this.addFrameListener(this.updateTimeline)
-    this.addFrameListener(this.updateAnimators)
+  },
+
+  animFrameListener: function(t,dt) {
+  	this.updateTimelines(t,dt);
+    this.updateKeyframes(t,dt);
+    this.updateTimeline(t,dt);
+    this.updateAnimators(t,dt);
+  },
+
+  addAnimListeners: function() {
+  	if(this.listenersAdded) return;
+  	
+  	this.listenersAdded = true;
+    this.addFrameListener(this.animFrameListener)
+  },
+  
+  removeAnimListeners: function() {
+    this.listenersAdded = false;
+    this.removeFrameListener(this.animFrameListener)
   },
 
   updateTimelines : function(t, dt) {
@@ -2358,19 +2734,22 @@ Animatable = Klass({
   },
 
   removeTimeline : function(tl) {
-    this.timelines.deleteFirst(tl)
+    //this.timelines.deleteFirst(tl)
+    Array.deleteFirst.call(this.timelines, tl);
   },
 
   /**
-    Tweens between keyframes (a keyframe is an object with the new values of
-    the members of this, e.g. { time: 0, target: { x: 10, y: 20 }, tween: 'square'})
-
-    Keyframes are very much like multi-variable animators, the main difference
-    is that with keyframes the start value and the duration are implicit.
-
-    While an animation from value A to B would take two keyframes instead of
-    a single animator, chaining and reordering keyframes is very easy.
-    */
+     * Tweens between keyframes (a keyframe is an object with the new values of
+     * the members of this, e.g. { time: 0, target: { x: 10, y: 20 }, tween:
+     * 'square'})
+     * 
+     * Keyframes are very much like multi-variable animators, the main
+     * difference is that with keyframes the start value and the duration are
+     * implicit.
+     * 
+     * While an animation from value A to B would take two keyframes instead of
+     * a single animator, chaining and reordering keyframes is very easy.
+     */
   updateKeyframes : function(t,dt) {
     this.addPendingKeyframes(t)
     if (this.keyframes.length > 0) {
@@ -2418,14 +2797,15 @@ Animatable = Klass({
           kf.time = kf.relativeTime + t
         this.keyframes.push(kf)
       }
-      this.keyframes.stableSort(function(a,b) { return a.time - b.time })
+      //this.keyframes.stableSort(function(a,b) { return a.time - b.time })
+      Array.stableSort.call(this.keyframes, function(a,b) { return a.time - b.time })
     }
   },
 
   /**
-    Run and remove timelineEvents that have startTime <= t.
-    TimelineEvents are run in the ascending order of their startTimes.
-    */
+     * Run and remove timelineEvents that have startTime <= t. TimelineEvents
+     * are run in the ascending order of their startTimes.
+     */
   updateTimeline : function(t, dt) {
     this.addPendingTimelineEvents(t)
     while (this.timeline[0] && this.timeline[0].startTime <= t) {
@@ -2455,7 +2835,8 @@ Animatable = Klass({
           kf.startTime = kf.relativeStartTime + t
         this.timeline.push(kf)
       }
-      this.timeline.stableSort(function(a,b) { return a.startTime - b.startTime })
+      //this.timeline.stableSort(function(a,b) { return a.startTime - b.startTime })
+      Array.stableSort.call(this.timeline, function(a,b) { return a.startTime - b.startTime });
     }
   },
 
@@ -2464,8 +2845,8 @@ Animatable = Klass({
   },
 
   /**
-    Run each animator, delete ones that have their durations exceeded.
-    */
+     * Run each animator, delete ones that have their durations exceeded.
+     */
   updateAnimators : function(t, dt) {
     for (var i=0; i<this.animators.length; i++) {
       var ani = this.animators[i]
@@ -2473,6 +2854,7 @@ Animatable = Klass({
       var elapsed = t - ani.startTime
       var pos = elapsed / ani.duration
       var shouldRemove = false
+      var fire_cb = false
       if (pos >= 1) {
         if (!ani.repeat) {
           pos = 1
@@ -2491,6 +2873,8 @@ Animatable = Klass({
             pos = pos % 1
           }
         }
+        
+        fire_cb = true
       } else if (ani.repeat && ani.repeat !== true && ani.repeat <= pos) {
         shouldRemove = true
         pos = ani.repeat
@@ -2500,6 +2884,11 @@ Animatable = Klass({
         this.animators.splice(i, 1)
         i--
       }
+      if(fire_cb && ani.callback)
+        ani.callback()
+        
+      if(this.animators.length < 1)
+        this.removeAnimListeners();
     }
   },
 
@@ -2522,17 +2911,35 @@ Animatable = Klass({
     this.changed = true
   },
 
+  /**
+   * Animate a property from a start value to an end value.
+   * 
+   * @see Animatable#tweenFunctions
+   * 
+   * @param {String} variable Variable name or receiving function function(percent, start, end)
+   * @param {number} start Starting value
+   * @param {number} end Ending value
+   * @param {number} duration Tween duration
+   * @param {String|Function} tween Tween function
+   * @param {Object} config Optional configs
+   * @param {boolean} config.additive Whether start and end are additive, or static
+   * @param {boolean|Number} config.repeat true for infinite times or {number} of times
+   * @param {Function} config.callback Callback for when completed
+   * @param {boolean} config.accumulate Whether differences are accumulated or tweened 
+   */
   animate : function(variable, start, end, duration, tween, config) {
     var start = Object.clone(start)
     var end = Object.clone(end)
+    var diff;
     if (!config) config = {}
     if (config.additive) {
-      var diff = Object.sub(end, start)
+      diff = Object.sub(end, start)
       start = Object.sum(start, this[variable])
       end = Object.sum(end, this[variable])
     }
     if (typeof(variable) != 'function')
       this[variable] = Object.clone(start)
+   
     var ani = {
       id : Animatable.uid++,
       variable : variable,
@@ -2544,14 +2951,17 @@ Animatable = Klass({
       repeat : config.repeat,
       additive : config.additive,
       accumulate : config.accumulate,
-      pingpong : config.pingpong
+      pingpong : config.pingpong,
+      callback : config.callback
     }
     this.animators.push(ani)
+    this.addAnimListeners();
     return ani
   },
 
   removeAnimator : function(animator) {
-    this.animators.deleteFirst(animator)
+    //this.animators.deleteFirst(animator)
+    Array.deleteFirst.call(this.animators, animator);
   },
 
   animateTo : function(variableName, end, duration, tween, config) {
@@ -2587,6 +2997,7 @@ Animatable = Klass({
       tween: tween
     }
     this.pendingKeyframes.push(kf)
+    this.addAnimListeners();
   },
 
   addKeyframeAt : function(time, target, tween) {
@@ -2596,10 +3007,12 @@ Animatable = Klass({
       tween: tween
     }
     this.pendingKeyframes.push(kf)
+    this.addAnimListeners();
   },
 
   appendKeyframe : function(timeDelta, target, tween) {
-    this.lastAction += timeDelta
+    this.lastAction += timeDelta;
+    this.addAnimListeners();
     return this.addKeyframe(this.lastAction, target, tween)
   },
 
@@ -2610,6 +3023,7 @@ Animatable = Klass({
       repeatEvery : duration
     }
     this.addTimelineEvent(kf)
+    this.addAnimListeners();
     return kf
   },
 
@@ -2619,15 +3033,23 @@ Animatable = Klass({
       startTime : time
     }
     this.addTimelineEvent(kf)
+    this.addAnimListeners();
     return kf
   },
 
+  /**
+   * Trigger an action after a duration in seconds.
+   * 
+   * @param duration Duration in ms
+   * @param action Callback function
+   */
   after : function(duration, action) {
     var kf = {
       action : action,
       relativeStartTime : duration
     }
     this.addTimelineEvent(kf)
+    this.addAnimListeners();
     return kf
   },
 
@@ -2647,8 +3069,7 @@ Animatable = Klass({
 
   everyFrame : function(duration, callback, noFirst) {
     var elapsed = noFirst ? 0 : duration
-    var animator
-    animator = function(t, dt){
+    var animator = function(t, dt){
       if (elapsed >= duration) {
         if (callback.call(this) == false)
           this.removeFrameListener(animator)
@@ -2659,173 +3080,161 @@ Animatable = Klass({
     this.addFrameListener(animator)
     return animator
   }
-})
+}
+//Animatable = Klass(Animatable);
 Animatable.uid = 0
-
+Profiler.wrap_class(Animatable, "Animatable");
 
 
 /**
-  CanvasNode is the base CAKE scenegraph node. All the other scenegraph nodes
-  derive from it. A plain CanvasNode does no drawing, but it can be used for
-  grouping other nodes and setting up the group's drawing state.
+ * CanvasNode is the base CAKE scenegraph node. All the other scenegraph nodes
+ * derive from it. A plain CanvasNode does no drawing, but it can be used for
+ * grouping other nodes and setting up the group's drawing state.
+ * 
+ * var scene = new CanvasNode({x: 10, y: 10})
+ * 
+ * The usual way to use CanvasNodes is to append them to a Canvas object:
+ * 
+ * var scene = new CanvasNode() scene.append(new Rectangle(40, 40, {fill:
+ * true})) var elem = E.canvas(400, 400) var canvas = new Canvas(elem)
+ * canvas.append(scene)
+ * 
+ * You can also use CanvasNodes to draw directly to a canvas element:
+ * 
+ * var scene = new CanvasNode() scene.append(new Circle(40, {x:200, y:200,
+ * stroke: true})) var elem = E.canvas(400, 400)
+ * scene.handleDraw(elem.getContext('2d'))
+ * 
+ * @constructor
+ * @extends Transformable
+ * @extends Animatable
+ * @implements Animatable
+ * 
+ * @param {CanvasNode} config 
+ * 
+ * @property {boolean} changed Set to true to signal the scene graph to update.
+ * @property {boolean} cacheAsBitmap Allows cake to cache the node contents as a bitmap.
+ *      bmpCache will need to be manually set to null to destroy a cache.
+ * @property {boolean} visible Whether to draw the node and its childNodes or not
+ * @property {boolean} drawable Whether to draw the node (doesn't affect subtree)
+ * @property {boolean} bmpCache Holds a reference to contents cache if any
+ */
+function CanvasNode(config) {
+     CanvasNode.prototype.initialize.call(this, config)
+}
 
-  var scene = new CanvasNode({x: 10, y: 10})
-
-  The usual way to use CanvasNodes is to append them to a Canvas object:
-
-    var scene = new CanvasNode()
-    scene.append(new Rectangle(40, 40, {fill: true}))
-    var elem = E.canvas(400, 400)
-    var canvas = new Canvas(elem)
-    canvas.append(scene)
-
-  You can also use CanvasNodes to draw directly to a canvas element:
-
-    var scene = new CanvasNode()
-    scene.append(new Circle(40, {x:200, y:200, stroke: true}))
-    var elem = E.canvas(400, 400)
-    scene.handleDraw(elem.getContext('2d'))
-
-  */
-CanvasNode = Klass(Animatable, Transformable, {
+CanvasNode.prototype = {
   OBJECTBOUNDINGBOX : 'objectBoundingBox',
 
-  // whether to draw the node and its childNodes or not
   visible : true,
 
-  // whether to draw the node (doesn't affect subtree)
   drawable : true,
 
-  // the CSS display property can be used to affect 'visible'
-  // false     => visible = visible
-  // 'none'    => visible = false
-  // otherwise => visible = true
+  /** the CSS display property can be used to affect 'visible'
+  * false => visible = visible
+  * 'none' => visible = false
+  * otherwise => visible = true */
   display : null,
 
-  // the CSS visibility property can be used to affect 'drawable'
-  // false     => drawable = drawable
-  // 'hidden'  => drawable = false
-  // otherwise => drawable = true
+  /** the CSS visibility property can be used to affect 'drawable'
+  * false => drawable = drawable
+  * 'hidden' => drawable = false
+  * otherwise => drawable = true */
   visibility : null,
 
   // whether this and the subtree from this register mouse hover
   catchMouse : true,
 
-  // Whether this object registers mouse hover. Only set this to true when you
-  // have a drawable object that can be picked. Otherwise the object requires
-  // a matrix inversion on Firefox 2 and Safari, which is slow.
+  /** Whether this object registers mouse hover. Only set this to true when you
+  * have a drawable object that can be picked. Otherwise the object requires
+  * a matrix inversion on Firefox 2 and Safari, which is slow. */
   pickable : false,
 
   // true if this node or one of its descendants is under the mouse
   // cursor and catchMouse is true
   underCursor : false,
 
-  // zIndex in relation to sibling nodes (note: not global)
+  /** zIndex in relation to sibling nodes (note: not global) */
   zIndex : 0,
 
-  // x translation of the node
-  x : 0,
+  id : null,
 
-  // y translation of the node
-  y : 0,
-
-  // scale factor: number for uniform scaling, [x,y] for dimension-wise
-  scale : 1,
-
-  // Rotation of the node, in radians.
-  //
-  // The rotation can also be the array [angle, cx, cy],
-  // where cx and cy define the rotation center.
-  //
-  // The array form is equivalent to
-  // translate(cx, cy); rotate(angle); translate(-cx, -cy);
-  rotation : 0,
-
-  // Transform matrix with which to multiply the current transform matrix.
-  // Applied after all other transformations.
-  matrix : null,
-
-  // Transform matrix with which to replace the current transform matrix.
-  // Applied before any other transformation.
-  absoluteMatrix : null,
-
-  // SVG-like list of transformations to apply.
-  // The different transformations are:
-  // ['translate', [x,y]]
-  // ['rotate', [angle, cx, cy]] - (optional) cx and cy are the rotation center
-  // ['scale', [x,y]]
-  // ['matrix', [m11, m12, m21, m22, dx, dy]]
-  transformList : null,
-
-  // fillStyle for the node and its descendants
-  // Possibilities:
-  //   null // use the previous
-  //   true      // use the previous but do fill
-  //   false     // use the previous but don't do fill
-  //   'none'    // use the previous but don't do fill
-  //
-  //   'white'
-  //   '#fff'
-  //   '#ffffff'
-  //   'rgba(255,255,255, 1.0)'
-  //   [255, 255, 255, 1.0]
-  //   new Gradient(...)
-  //   new Pattern(myImage, 'no-repeat')
+  /** fillStyle for the node and its descendants
+  * Possibilities:
+  * null  use the previous
+  * true  use the previous but do fill
+  * false  use the previous but don't do fill
+  * 'none'  use the previous but don't do fill
+  *
+  * 'white'
+  * '#fff'
+  * '#ffffff'
+  * 'rgba(255,255,255, 1.0)'
+  * [255, 255, 255, 1.0]
+  * new Gradient(...)
+  * new Pattern(myImage, 'no-repeat') */
   fill : null,
+  
+  nDraws : 0,
 
-  // strokeStyle for the node and its descendants
-  // Possibilities:
-  //   null // use the previous
-  //   true      // use the previous but do stroke
-  //   false     // use the previous but don't do stroke
-  //   'none'    // use the previous but don't do stroke
-  //
-  //   'white'
-  //   '#fff'
-  //   '#ffffff'
-  //   'rgba(255,255,255, 1.0)'
-  //   [255, 255, 255, 1.0]
-  //   new Gradient(...)
-  //   new Pattern(myImage, 'no-repeat')
+  /** strokeStyle for the node and its descendants
+  * Possibilities:
+  * null  use the previous
+  * true  use the previous but do stroke
+  * false  use the previous but don't do stroke
+  * 'none'  use the previous but don't do stroke
+  *
+  * 'white'
+  * '#fff'
+  * '#ffffff'
+  * 'rgba(255,255,255, 1.0)'
+  * [255, 255, 255, 1.0]
+  * new Gradient(...)
+  * new Pattern(myImage, 'no-repeat') */
   stroke : null,
 
-  // stroke line width
+  /** stroke line width */
   strokeWidth : null,
 
-  // stroke line cap style ('butt' | 'round' | 'square')
+  /** stroke line cap style ('butt' | 'round' | 'square') */
   lineCap : null,
 
-  // stroke line join style ('bevel' | 'round' | 'miter')
+  /** stroke line join style ('bevel' | 'round' | 'miter') */
   lineJoin : null,
 
-  // stroke line miter limit
+  /** stroke line miter limit */
   miterLimit : null,
+  
+  /** enables CSS3 3D transforms when in useDOM mode. Provides hardware 
+   * accelerated compositing. Use sparingly, heavy VRAM use.*/
+  t3d: false,
 
   // set globalAlpha to this value
   absoluteOpacity : null,
+  globalAlpha: null,
 
-  // multiply globalAlpha by this value
+  /** 0-1 scalar for opacity. Accumulates down ancestry. */
   opacity : null,
 
-  // fill opacity
+  /** fill opacity */
   fillOpacity : null,
 
-  // stroke opacity
+  /** stroke opacity*/
   strokeOpacity : null,
 
-  // set globalCompositeOperation to this value
-  // Possibilities:
-  // ( 'source-over' |
-  //   'copy' |
-  //   'lighter' |
-  //   'darker' |
-  //   'xor' |
-  //   'source-in' |
-  //   'source-out' |
-  //   'destination-over' |
-  //   'destination-atop' |
-  //   'destination-in' |
-  //   'destination-out' )
+  /** set globalCompositeOperation to this value
+  * Possibilities:
+  * ( 'source-over' |
+  * 'copy' |
+  * 'lighter' |
+  * 'darker' |
+  * 'xor' |
+  * 'source-in' |
+  * 'source-out' |
+  * 'destination-over' |
+  * 'destination-atop' |
+  * 'destination-in' |
+  * 'destination-out' ) */
   compositeOperation : null,
 
   // Color for the drop shadow
@@ -2840,20 +3249,85 @@ CanvasNode = Klass(Animatable, Transformable, {
   // Drop shadow's y-offset
   shadowOffsetY : null,
 
-  // HTML5 text API
+  /** HTML5 text API */
   font : null,
-  // horizontal position of the text origin
-  // 'left' | 'center' | 'right' | 'start' | 'end'
+  /** horizontal position of the text origin
+  * 'left' | 'center' | 'right' | 'start' | 'end'*/
   textAlign : null,
-  // vertical position of the text origin
-  // 'top' | 'hanging' | 'middle' | 'alphabetic' | 'ideographic' | 'bottom'
+  /** vertical position of the text origin
+  * 'top' | 'hanging' | 'middle' | 'alphabetic' | 'ideographic' | 'bottom'*/
   textBaseline : null,
 
   cursor : null,
 
+  /** This property must be set to true when any visible changes are made to the node.
+   * This is automatically set be animators. */
   changed : true,
+  
+  /** This property holds the bitmap cache if one is present. 
+   * To clear a cache, set this to null. */  
+  bmpCache : null,
 
   tagName : 'g',
+  nodeType: 1,
+  nodeName: 'div',
+  className: '',
+    
+  /**
+   * Set to a an array with a bounding box [x,y,w,h] in local coords or null
+   * @type Array
+   */
+  mask : null,
+ 
+  /**
+   * Triggered when the changed flag has been set by self or a decendant.
+   * @function
+   * @param changed The value of the changed flag, true if set by self
+   *    or a reference to a decendant that triggered changed.
+   */
+  onChanged: null,
+  
+  /** Set this to false to ignore picking on children. */
+  pickIgnoreChildren : false,
+  /** Set this to true to prevent updates on children when bmpCache is present */
+  cacheIgnoreChildren : false,
+  needMatrixUpdate : true,
+  needZIndexUpdate: false,
+  lastZIndex: null,      
+  body: null,
+  willBeDrawn: true,
+  DOMelement: null,
+  previousBoundingBox : null,
+  lastAABB : null,
+  lastIdentityAABB : null,
+  isDirty : true,
+  webGLImage: null,
+  needsDOMUpdate: false,
+  /** Set this to true to cache the node and all of its children. The cached
+   * image will be stored in bmpCache. To disable caching, set this to false
+   * and set bmpCache to null, as well as the changed flag to true.
+   * 
+   * @see CanvasNode.bmpCache
+   */
+  cacheAsBitmap: false,
+  frameListeners: null,
+  eventListeners: null,
+  bmpScale: null,
+  drawWebGL: null,
+
+  parent: null,
+  childNodes: null,
+  
+  /**
+   * The root Canvas object
+   * @type Canvas
+   */
+  root: null,
+  drawRoot: null,
+  
+  getAttribute: function(k) {
+    return this[k];
+  },
 
   getNextSibling : function(){
     if (this.parentNode)
@@ -2866,26 +3340,65 @@ CanvasNode = Klass(Animatable, Transformable, {
       return this.parentNode.childNodes[this.parentNode.childNodes.indexOf(this)-1]
     return null
   },
-
+  
+  
+  
   /**
-    Initialize the CanvasNode and merge an optional config hash.
-    */
-  initialize : function(config) {
-    this.root = this
-    this.currentMatrix = [1,0,0,1,0,0]
-    this.previousMatrix = [1,0,0,1,0,0]
-    this.needMatrixUpdate = true
+     * Initialize the CanvasNode and merge an optional config hash.
+     */
+  /** @override */ initialize : function(config) {
+  	Transformable.prototype.initialize.call(this)
+  	
+    this.parent = null;
+    this.root = this.drawRoot = this;
+    
+    if(AGGRESSIVE_NO_UPDATE) {
+    	var _changed = true;
+    	
+    	this.__defineSetter__('changed', function(v) {
+    		if(v && !_changed && this.parent && this.parent !== this)
+    			this.parent.changed = true;
+    		_changed = v;
+    	});
+    	
+    	this.__defineGetter__('changed', function() {
+    		return _changed;
+    	});
+    }
+    
     this.childNodes = []
-    this.frameListeners = []
+    this.frameListeners = null;
     this.eventListeners = {}
-    Animatable.initialize.call(this)
+    this.currentMatrix = [1,0,0,1,0,0];
+    
     if (config)
       Object.extend(this, config)
+      
+    this.addEventListener('rootChanged', function(e) {
+    	if(this.root.isFake || !e.removeRoot) return;
+    	
+    	this.___savedCacheCanvas = null;
+    	
+    	if(!this.bmpCache) return;
+    	
+    	if(this.bmpCache.GLimg && this.root.useEGL) { //removing
+	  		gl.addAction(['_DELETE_TEXTURE', parseInt(this.bmpCache.GLimg)]);
+	  		this.bmpCache.GLimg = null;
+	  	}
+	  	
+	  	if(this.root.useWebgl && this.bmpCache.webGLImage) { //removing
+  			e.removeRoot.gl.deleteTexture(this.bmpCache.webGLImage);
+  			delete this.bmpCache.webGLImage;
+	  		this.bmpCache.webGLImage = null;
+	  	}
+	  	
+	  	this.bmpCache = null;
+    });
   },
 
   /**
-    Create a clone of the node and its subtree.
-    */
+     * Create a clone of the node and its subtree.
+     */
   clone : function() {
     var c = Object.clone(this)
     c.parent = c.root = null
@@ -2906,8 +3419,8 @@ CanvasNode = Klass(Animatable, Transformable, {
   cloneNode : function(){ return this.clone() },
 
   /**
-    Gets node by id.
-    */
+     * Gets node by id.
+     */
   getElementById : function(id) {
     if (this.id == id)
       return this
@@ -2917,77 +3430,152 @@ CanvasNode = Klass(Animatable, Transformable, {
     }
     return null
   },
+  
+  getElementsByTagName : function(tn) {
+    var ret = [];
+    
+    if (this.tagName == tn || tn == '*')
+      ret = [this];
+    for (var i=0; i<this.childNodes.length; i++) {
+      var n = this.childNodes[i].getElementsByTagName(tn)
+      if (n) ret = ret.concat(n)
+    }
+    if(ret.length) return ret;
+    
+    return null
+  },
 
   $ : function(id) {
     return this.getElementById(id)
   },
+  
+  /**
+   * Triggered when the changed property is set to true. Marks content change.
+   */
+  onDirty : function() {
+  	var p = this.parent;
+  	if(!p) return;
+
+  	/*if(this.oldZIndex != this.zIndex) {
+	  	var c = p.__getChildrenCopy();
+	    p.__zSort(c);
+	    p.childNodes = c;
+  	}
+    
+    this.oldZIndex = this.zIndex;*/
+  },
 
   /**
-    Alias for append().
-
-    @param Node[s] to append
-    */
+     * Alias for append().
+     * 
+     * @see CanvasNode.append
+     */
   appendChild : function() {
     return this.append.apply(this, arguments)
   },
 
   /**
-    Appends arguments as childNodes to the node.
-
-    Adding a child sets child.parent to be the node and calls
-    child.setRoot(node.root)
-
-    @param Node[s] to append
-    */
+     * Appends arguments as childNodes to the node.
+     * 
+     * Adding a child sets child.parent to be the node and calls
+     * child.setRoot(node.root)
+     * 
+     * @param {CanvasNode} obj Node to append
+     * @param {CanvasNode} ... More nodes to append
+     */
   append : function(obj) {
+  	this.needsDOMUpdate = true;
+  	this.needZIndexUpdate = true;
+  	//CRIO
+  	//this.transform(null, true)
+  	
+  	
+  	
     var a = $A(arguments)
     for (var i=0; i<a.length; i++) {
       if (a[i].parent) a[i].removeSelf()
-      this.childNodes.push(a[i])
-      a[i].parent = a[i].parentNode = this
-      a[i].setRoot(this.root)
+      this.childNodes.push(a[i]);
+      a[i].parent = a[i].parentNode = this;
+
+      this.changed = this.changed || a[i];
+      
+      a[i].setRoot(this.root, this.drawRoot);
     }
-    this.changed = true
   },
 
   /**
-    Removes all childNodes from the node.
-    */
+     * Removes all childNodes from the node.
+     */
   removeAllChildren : function() {
     this.remove.apply(this, this.childNodes)
   },
 
   /**
-    Alias for remove().
-
-    @param Node[s] to remove
-    */
+     * Alias for remove().
+     * 
+     * @see CanvasNode.remove
+     */
   removeChild : function() {
     return this.remove.apply(this, arguments)
   },
 
   /**
-    Removes arguments from the node's childNodes.
-
-    Removing a child sets its parent to null and calls
-    child.setRoot(null)
-
-    @param Child node[s] to remove
-    */
+     * Removes arguments from the node's childNodes.
+     * 
+     * Removing a child sets its parent to null and calls child.setRoot(null)
+     * 
+     * @param {CanvasNode} obj Node to append
+     * @param {CanvasNode} ... More nodes to append
+     */
   remove : function(obj) {
+    var root = this.drawRoot;
+    
+    //CRIO
+    //this.transform(null, true)
+    
+    this.needZIndexUpdate = true;
+    
     var a = arguments
-    for (var i=0; i<a.length; i++) {
-      this.childNodes.deleteFirst(a[i])
-      delete a[i].parent
-      delete a[i].parentNode
-      a[i].setRoot(null)
+    for (var i=0; i<a.length; i++) { 
+      /*if(root && root.redrawOnlyWhatChanged) {
+        //var b = this.getAxisAlignedBoundingBox();
+        var b = a[i].getSubtreeBoundingBox();
+        
+        if(this.bmpCache) {
+            var bb = this.bmpCache.bmpBoundingBox;
+			var point = CanvasSupport.tMatrixMultiplyPoint(this.currentMatrix, 0, 0);
+			
+			b = [point[0] + bb[0], 
+	       		point[1] + bb[1], (bb[2]), (bb[3])];
+        }
+        
+        if(b && root.dirtyRegions) 
+            root.dirtyRegions.push(b);
+      }*/
+      
+      if(a[i].DOMelement && a[i].DOMelement.parentNode) 
+        a[i].DOMelement.parentNode.removeChild(a[i].DOMelement);
+      
+      if(a[i].imageElement && a[i].imageElement.parentNode) 
+        a[i].imageElement.parentNode.removeChild(a[i].imageElement);
+    	
+      a[i].setRoot(null, null, root);
+      //this.childNodes.deleteFirst(a[i]);
+      Array.deleteFirst.call(this.childNodes, a[i]);
+      delete a[i].parent;
+      delete a[i].parentNode;
+      this.changed = this.changed || a[i];
+      
     }
-    this.changed = true
+    
+    //this.transform(null, true)
+    
+    this.needsDOMUpdate = true
   },
 
   /**
-    Calls this.parent.removeChild(this) if this.parent is set.
-    */
+     * Calls this.parent.removeChild(this) if this.parent is set.
+     */
   removeSelf : function() {
     if (this.parentNode) {
       this.parentNode.remove(this)
@@ -2995,12 +3583,13 @@ CanvasNode = Klass(Animatable, Transformable, {
   },
 
   /**
-    Returns true if this node's subtree contains obj. (I.e. obj is this or
-    obj's parent chain includes this.)
-
-    @param obj Node to look for
-    @return True if obj is in this node's subtree, false if it isn't.
-    */
+     * Returns true if this node's subtree contains obj. (I.e. obj is this or
+     * obj's parent chain includes this.)
+     * 
+     * @param obj
+     *            Node to look for
+     * @return True if obj is in this node's subtree, false if it isn't.
+     */
   contains : function(obj) {
     while (obj) {
       if (obj == this) return true
@@ -3010,53 +3599,112 @@ CanvasNode = Klass(Animatable, Transformable, {
   },
 
   /**
-    Set this.root to the given value and propagate the update to childNodes.
+     * Set this.root to the given value and propagate the update to childNodes.
+     * 
+     * @param root
+     *            The new root node
+     * @private
+     */
+  setRoot : function(root, drawRoot, removeRoot) {
+    //remove
+    if(removeRoot && removeRoot.redrawOnlyWhatChanged) {
+        //var b = this.getAxisAlignedBoundingBox();
+        var b = this.previousBoundingBox;
+        
+        if(b && removeRoot.dirtyRegions) 
+            removeRoot.dirtyRegions.push(b);
+            
+        b = this.getAxisAlignedBoundingBox();
+        
+        if(b && removeRoot.dirtyRegions) 
+            removeRoot.dirtyRegions.push(b);
+    }
+    
+    this.DOMelement = null;
+    if(this.imageElement)
+        this.imageElement = null;
+    
+    root = root || this;
+    
+    this.root = root;
+    //int much faster than float...
+    this.pmNum = parseInt(Math.random() * 100000);
+    this.mNum = parseInt(Math.random() * 100000);
+    this.drawRoot = drawRoot;
+    this.relativeMatrix = null
+    this.lastTransList = null;
+    this.currentMatrix = [1,0,0,1,0,0];
+    this.needZIndexUpdate = true;
+    this.lastZIndex = null;
+    this.parentMatrixUpdated = true;
+    this.needsDOMUpdate = this.needMatrixUpdate = this.changed = this.isDirty = true;
+    this.oldZIndex = null;
+    this.dispatchEvent(new GenericEvent('rootChanged', {canvasTarget: this, 
+        relatedTarget: root, removeRoot: removeRoot}));
 
-    @param root The new root node
-    @private
-    */
-  setRoot : function(root) {
-    if (!root) root = this
-    this.dispatchEvent({type: 'rootChanged', canvasTarget: this, relatedTarget: root})
-    this.root = root
+    if(this instanceof ElementNode && removeRoot 
+            && this.DOMelement && this.DOMelement.parentNode) {
+    	this.DOMelement.parentNode.removeChild(this.DOMelement);
+    }
+      
+    //CRIO  
+    if(!removeRoot) this.transform(null, true)
     for (var i=0; i<this.childNodes.length; i++)
-      this.childNodes[i].setRoot(root)
+      this.childNodes[i].setRoot(this.root, this.drawRoot, removeRoot)
+    //this.transform(null, true)
+      
+    //add
+    if(root && this.drawRoot && this.drawRoot.redrawOnlyWhatChanged) {
+        var b = this.getAxisAlignedBoundingBox();
+        
+        if(b && this.drawRoot && this.drawRoot.dirtyRegions) 
+            this.drawRoot.dirtyRegions.push(b);
+    }
   },
 
   /**
-    Adds a callback function to be called before drawing each frame.
-
-    @param f Callback function
-    */
+     * Adds a callback function to be called before drawing each frame.
+     * 
+     * @param f
+     *            Callback function
+     */
   addFrameListener : function(f) {
+  	if(!this.frameListeners) this.frameListeners = [];
     this.frameListeners.push(f)
   },
 
   /**
-    Removes a callback function from update callbacks.
-
-    @param f Callback function
-    */
+     * Removes a callback function from update callbacks.
+     * 
+     * @param f
+     *            Callback function
+     */
   removeFrameListener : function(f) {
-    this.frameListeners.deleteFirst(f)
+    //this.frameListeners.deleteFirst(f)
+    Array.deleteFirst.call(this.frameListeners, f);
+    if(!this.frameListeners.length) this.frameListeners = null;
   },
 
   addEventListener : function(type, listener, capture) {
-    if (!this.eventListeners[type])
-      this.eventListeners[type] = {capture:[], bubble:[]}
+    if (!this.eventListeners[type]) {
+      var p = this.eventListeners[type] = {capture:[], bubble:[]};
+      p['capture'] = p.capture;
+      p['bubble'] = p.bubble;
+    }
     this.eventListeners[type][capture ? 'capture' : 'bubble'].push(listener)
   },
 
   /**
-    Synonym for addEventListener.
-  */
+     * Synonym for addEventListener.
+     */
   when : function(type, listener, capture) {
     this.addEventListener(type, listener, capture || false)
   },
 
   removeEventListener : function(type, listener, capture) {
     if (!this.eventListeners[type]) return
-    this.eventListeners[type][capture ? 'capture' : 'bubble'].deleteFirst(listener)
+    //this.eventListeners[type][capture ? 'capture' : 'bubble'].deleteFirst(listener)
+    Array.deleteFirst.call(this.eventListeners[type][capture ? 'capture' : 'bubble'], listener);
     if (this.eventListeners[type].capture.length == 0 &&
         this.eventListeners[type].bubble.length == 0)
       delete this.eventListeners[type]
@@ -3064,6 +3712,9 @@ CanvasNode = Klass(Animatable, Transformable, {
 
   dispatchEvent : function(event) {
     var type = event.type
+
+    //if(event.type == 'mousedown') console.log([event, this.root.target]);
+    
     if (!event.canvasTarget) {
       if (type.search(/^(key|text)/i) == 0) {
         event.canvasTarget = this.root.focused || this.root.target
@@ -3073,13 +3724,29 @@ CanvasNode = Klass(Animatable, Transformable, {
       if (!event.canvasTarget)
         event.canvasTarget = this
     }
+    
     var path = []
     var obj = event.canvasTarget
+    
+    if(this.root.pickByDepth) {
+        path = this.root.pickStack || [];
+        event.canvasPhase = 'capture'
+	    for (var i=path.length-1; i>=0; i--)
+	      if (!path[i].handleEvent(event)) return false
+	    event.canvasPhase = 'bubble'
+	    for (var i=0; i<path.length; i++)
+	      if (!path[i].handleEvent(event)) return false
+	      
+	    return true;
+    }
+    
+    path = []
     while (obj && obj != this) {
       path.push(obj)
       obj = obj.parent
     }
     path.push(this)
+    
     event.canvasPhase = 'capture'
     for (var i=path.length-1; i>=0; i--)
       if (!path[i].handleEvent(event)) return false
@@ -3106,6 +3773,7 @@ CanvasNode = Klass(Animatable, Transformable, {
     if (this.cursor && phase == 'capture')
       event.cursor = this.cursor
     var els = this.eventListeners[type]
+    
     els = els && els[phase]
     if (els) {
       for (var i=0; i<els.length; i++) {
@@ -3120,71 +3788,253 @@ CanvasNode = Klass(Animatable, Transformable, {
     }
     return true
   },
+  
+  preUpdate: function(time, timeDelta) {
+  	var top = this;
+  	var parent = top.parent;
+  	var root = this.root;
+  	var b2d = top.body !== null && root.enableBox2D;
+            
+    if(root.legacyCake) {
+    	top.needMatrixUpdate = top.changed = true;
+    }
+            
+    if(b2d === true) {
+        var pos = top.body.GetCenterPosition();
+                
+        top.x = pos.x;
+        top.y = pos.y;
+        top.changed = true;
+        top.rotation = top.body.GetRotation();
+        var mr = top.body.m_R; 
+        top.fixedRelativeMatrix = [mr.col1.x, mr.col1.y, mr.col2.x, mr.col2.y, pos.x, pos.y];
+    } 
+    
+    if(top.needMatrixUpdate)
+        top.transform(null, true);
+
+    if(top.lastZIndex !== top.zIndex && parent !== null) parent.needZIndexUpdate = true;
+    top.lastZIndex = top.zIndex;
+    
+    if(top.frameListeners !== null) {
+	    // need to operate on a copy, otherwise bad stuff happens
+	    //var fl = top.frameListeners.slice(0)
+	    //for(var i=0; i<fl.length; i++) {
+	    for(var i in top.frameListeners) {
+	      //if (Array.includes.call(top.frameListeners, fl[i]))
+	        top.frameListeners[i].apply(top, arguments)
+	    }
+    }
+        
+    var willBeDrawn = (!parent || parent.willBeDrawn) 
+        && (top.display ? (top.display !== 'none' || top.DOMelement !== null) : top.visible);
+        
+    if(top.willBeDrawn != willBeDrawn) {
+      top.isDirty = true;
+      
+      //if(root.redrawOnlyWhatChanged)
+      //    top.handleRedrawRegion(null, true);
+    }
+      
+    top.willBeDrawn = willBeDrawn;
+  },
+  
+  postUpdate: function(time, timeDelta) {
+  	var top = this;
+  	var root = this.root;
+    var parent = top.parent;
+    
+    if (top.changed) { 
+      //root.numChanged++;
+      //root.numChangedTrue++;
+      if(top.onChanged) top.onChanged(top.changed);
+      
+      if(!AGGRESSIVE_NO_UPDATE)
+        top.needsDOMUpdate = true;
+      if(top.changed === true) {
+        top.needMatrixUpdate = true;
+        top.transform(null, true);
+        top.needsDOMUpdate = true;
+        top.isDirty = true;
+        if(!root.isFake) top.onDirty();
+        
+        if(AGGRESSIVE_NO_UPDATE && 
+            parent !== null && !parent.changed) parent.changed = top;   
+        
+        //top.transform(null, true);
+      } else if(AGGRESSIVE_NO_UPDATE && parent !== null && !parent.changed)
+        parent.changed = top.changed;   
+        
+      if(parent !== null) top.changed = false
+    } 
+    
+    if(top.needZIndexUpdate === true) {
+        top.__zSort(top.childNodes);
+        top.needZIndexUpdate = false;
+    }
+    
+    //top.transform(null, true)
+  },
 
   /**
-    Handle scenegraph update.
-    Called with current time before drawing each frame.
-
-    This method should be touched only if you know what you're doing.
-    If you need your own update handler, either add a frame listener or
-    overwrite {@link CanvasNode#update}.
-
-    @param time Current animation time
-    @param timeDelta Time since last frame in milliseconds
-    */
+     * Handle scenegraph update. Called with current time before drawing each
+     * frame.
+     * 
+     * This method should be touched only if you know what you're doing. If you
+     * need your own update handler, either add a frame listener or overwrite
+     * {@link CanvasNode.update}.
+     * 
+     * @private
+     * @param time
+     *            Current animation time
+     * @param timeDelta
+     *            Time since last frame in milliseconds
+     */
   handleUpdate : function(time, timeDelta) {
-    this.update(time, timeDelta)
-    this.willBeDrawn = (!this.parent || this.parent.willBeDrawn) && (this.display ? this.display != 'none' : this.visible)
-    for(var i=0; i<this.childNodes.length; i++)
-      this.childNodes[i].handleUpdate(time, timeDelta)
-    // TODO propagate dirty area bbox up the scene graph
-    if (this.parent && this.changed) {
-      this.parent.changed = this.changed
-      this.changed = false
+    var root = this.root;
+
+    var ptr = this;
+    var stack = [this];
+    var cstack = [this.childNodes];//__getChildrenCopy()];
+    var idx = [0];
+    while(stack.length !== 0) {
+        var top = stack[stack.length - 1];
+        var i = idx[stack.length - 1]++;
+        var cref = cstack[stack.length - 1];
+
+        if(i === 0) {
+        	if(AGGRESSIVE_NO_UPDATE && !top.changed) {
+	        	stack.pop();
+	            idx.pop();
+	            cstack.pop();
+	            continue;
+	        }
+	        
+        	top.preUpdate(time, timeDelta);
+        }
+
+        var ch = cref[i];
+        if(ch) {
+        	if(!top.cacheIgnoreChildren || !top.bmpCache || top.root.isFake) {
+                stack.push(ch);
+                idx.push(0);
+                cstack.push(ch.childNodes);//__getChildrenCopy());
+        	}
+            continue;
+        }
+
+        //if(cref[i + 1] !== undefined) continue; //still children
+        
+        top.postUpdate(time, timeDelta);
+    	
+        stack.pop();
+        idx.pop();
+        cstack.pop();
     }
-    this.needMatrixUpdate = true
+        
+    //this.transform(null, true)
+  },
+  
+  handleRedrawRegion: function(ctx, no_child) {
+  	//CRIO
+    //this.transform(null, true);
+    
+    if(this.needMatrixUpdate)
+        this.transform(null, true);
+    
+    if(!(this.bmpCache) && !no_child && this.visible) {
+        for(var i=0; i<this.childNodes.length; i++)
+            this.childNodes[i].handleRedrawRegion(ctx)
+    }
+    
+    //if(this.needMatrixUpdate)
+    //    this.transform(null, true);
+            
+    if(this.isDirty && !this.noRedraw) {
+        var pbb = this.previousBoundingBox;
+        var cbb = this.getAxisAlignedBoundingBox()
+        this.previousBoundingBox = cbb;
+        var ccbb = cbb;
+        
+        this.isDirty = false;
+        
+        /*if(this.cacheAsBitmap == 'all' && this.bmpCache) {
+           ccbb = this.bmpCache.bmpBoundingBox;
+           cbb = this.getSubtreeBoundingBox();
+        }
+    
+        //change in scale
+        if(!this.isBeingCached && (!ccbb || !this.bmpCache.bmpBoundingBox || parseInt(ccbb[2]) != parseInt(this.bmpCache.bmpBoundingBox[2])
+                || parseInt(ccbb[3]) != parseInt(this.bmpCache.bmpBoundingBox[3]))) {
+            if(this.cacheAsBitmap)
+               this.bmpCache = null
+               
+            if(this instanceof TextNode) {
+            	this.imageMask = null;
+                this.needsImgTextUpdate = true;
+            }
+        }
+        
+        //this.bmpCache = null;
+
+        var isdif = false
+
+        if(cbb && pbb) // compare
+            for(var i = 0 ; i < 4 ; i++)
+                if(pbb[i] != cbb[i])
+                    isdif = true
+        else if(cbb || pbb) // or changed visibility
+            isdif = true;*/
+            
+        if(this.bmpCache) {
+            var bb = this.bmpCache.bmpBoundingBox;
+			var point = CanvasSupport.tMatrixMultiplyPoint(this.currentMatrix, 0, 0);
+
+            var dscale = 1;
+	       	if(this.bmpScale) {
+	            /*bb = this.bmpCache.relativeBmpBoundingBox;
+	            point = [0,0];
+	            bb = this.transformBoundingBoxBy(bb, this.parent.currentMatrix);*/
+	            
+	            dscale = 1;//this.bmpScale;
+	            
+	            dscale = this.currentMatrix[0] / this.bmpCache.bmpScale;
+	        }
+	        
+	        //console.log(cbb);
+	        cbb = this.previousBoundingBox = [point[0] + bb[0] * dscale, 
+	            point[1] + bb[1] * dscale, (bb[2]) * dscale, (bb[3]) * dscale];
+        }
+
+         if(this.drawRoot) {
+            !cbb || this.drawRoot.dirtyRegions.push(cbb);
+            !pbb || this.drawRoot.dirtyRegions.push(pbb);
+         }
+    } 
   },
 
   /**
-    Update this node. Calls all frame listener callbacks in the order they
-    were added.
-
-    Overwrite this with your own method if you want to do things differently.
-
-    @param time Current animation time
-    @param timeDelta Time since last frame in milliseconds
-    */
-  update : function(time, timeDelta) {
-    // need to operate on a copy, otherwise bad stuff happens
-    var fl = this.frameListeners.slice(0)
-    for(var i=0; i<fl.length; i++) {
-      if (this.frameListeners.includes(fl[i]))
-        fl[i].apply(this, arguments)
-    }
-  },
-
-  /**
-    Tests if this node or its subtree is under the mouse cursor and
-    sets this.underCursor accordingly.
-
-    If this node (and not one of its childNodes) is under the mouse cursor
-    this.root.target is set to this. This way, the topmost (== drawn last)
-    node under the mouse cursor is the root target.
-
-    To see whether a subtree node is the current target:
-
-    if (this.underCursor && this.contains(this.root.target)) {
-      // we are the target, let's roll
-    }
-
-    This method should be touched only if you know what you're doing.
-    Overwrite {@link CanvasNode#drawPickingPath} to change the way the node's
-    picking path is created.
-
-    Called after handleUpdate, but before handleDraw.
-
-    @param ctx Canvas 2D context
-    */
+     * Tests if this node or its subtree is under the mouse cursor and sets
+     * this.underCursor accordingly.
+     * 
+     * If this node (and not one of its childNodes) is under the mouse cursor
+     * this.root.target is set to this. This way, the topmost (== drawn last)
+     * node under the mouse cursor is the root target.
+     * 
+     * To see whether a subtree node is the current target:
+     * 
+     * if (this.underCursor && this.contains(this.root.target)) { // we are the
+     * target, let's roll }
+     * 
+     * This method should be touched only if you know what you're doing.
+     * Overwrite {@link CanvasNode#drawPickingPath} to change the way the node's
+     * picking path is created.
+     * 
+     * Called after handleUpdate, but before handleDraw.
+     * 
+     * @param ctx
+     *            Canvas 2D context
+     */
   handlePick : function(ctx) {
     // CSS display & visibility
     if (this.display)
@@ -3192,48 +4042,88 @@ CanvasNode = Klass(Animatable, Transformable, {
     if (this.visibility)
       this.drawable = (this.visibility != 'hidden')
     this.underCursor = false
+
+	//this.transform(null, true)
+
     if (this.visible && this.catchMouse && this.root.absoluteMouseX != null) {
-      ctx.save()
-      this.transform(ctx, true)
-      if (this.pickable && this.drawable) {
-        if (ctx.isPointInPath) {
-          ctx.beginPath()
-          if (this.drawPickingPath)
-            this.drawPickingPath(ctx)
-        }
-        this.underCursor = CanvasSupport.isPointInPath(
-                              this.drawPickingPath ? ctx : false,
-                              this.root.mouseX,
-                              this.root.mouseY,
-                              this.currentMatrix,
-                              this)
-        if (this.underCursor)
-          this.root.target = this
+	  var bbskip = false;
+	  var skip = false;
+	  
+      
+      //TODO: this makes this slower...
+      /*var bb = this.getAxisAlignedBoundingBox();	  
+	  if(bb) {
+        var x_out = this.root.mouseX < bb[0] || this.root.mouseX > (bb[0] + bb[2]);
+        var y_out = this.root.mouseY < bb[1] || this.root.mouseY > (bb[1] + bb[3]);
+        
+        bbskip = x_out || y_out;
+	  }*/
+		
+	  if( this.mask  ) {
+			var bb = this.transformBoundingBoxBy(this.mask, this.currentMatrix);
+			
+			if( this.root.mouseX < bb[0] || this.root.mouseX > (bb[0] + bb[2]) 
+				|| this.root.mouseY < bb[1] || this.root.mouseY > (bb[1] + bb[3]) )
+				skip = true;
+	  }
+			
+      if (this.pickable && (this.drawable || this.bmpCache) && !skip && !bbskip) {
+      	//ctx.save()
+      	this.transform(ctx, true)
+	    if (ctx.isPointInPath) {
+	      ctx.beginPath();
+	      if(this.bmpCache) {
+	      	var bb = this.bmpCache.bmpBoundingBox;
+			var point = CanvasSupport.tMatrixMultiplyPoint(this.currentMatrix, 0, 0);
+	       		
+	        ctx.setTransform(1,0,0,1,0,0);
+	        ctx.rect(point[0] + bb[0], 
+	       		point[1] + bb[1], (bb[2]), (bb[3]));
+	      } else if (this.drawPickingPath)
+	        this.drawPickingPath(ctx)
+	    }
+	    this.underCursor = CanvasSupport.isPointInPath(
+	                          this.drawPickingPath ? ctx : false,
+	                          this.root.mouseX,
+	                          this.root.mouseY,
+	                          !this.bmpCache ? this.currentMatrix : [1,0,0,1,0,0],
+	                          this)
+	    if (this.underCursor) {
+	      this.root.pickStack.unshift(this);
+	      this.root.target = this
+	    }
+	    //ctx.restore();
       } else {
         this.underCursor = false
       }
-      var c = this.__getChildrenCopy()
-      this.__zSort(c)
-      for(var i=0; i<c.length; i++) {
-        c[i].handlePick(ctx)
-        if (!this.underCursor)
-          this.underCursor = c[i].underCursor
-      }
-      ctx.restore()
-    } else {
-      var c = this.__getChildrenCopy()
+	  if( !skip && !this.pickIgnoreChildren && this.visible) {
+      	  var c = this.childNodes;//__getChildrenCopy()
+	      //this.__zSort(c)
+	      for(var i=0; i<c.length; i++) {
+	        c[i].handlePick(ctx)
+	        if (!this.underCursor)
+	          this.underCursor = c[i].underCursor
+	      }
+	  }
+      
+    } else if( !this.pickIgnoreChildren && this.visible ) {
+      /*var c = this.__getChildrenCopy()
       while (c.length > 0) {
         var c0 = c.pop()
         if (c0.underCursor) {
           c0.underCursor = false
           Array.prototype.push.apply(c, c0.childNodes)
         }
-      }
+      }*/
+      //TODO: undercursor does what?
     }
+    
+    // console.log(this.root.target);
   },
 
   __zSort : function(c) {
-    c.stableSort(function(c1,c2) { return c1.zIndex - c2.zIndex; });
+    //c.stableSort(function(c1,c2) { return c1.zIndex - c2.zIndex; });
+    Array.stableSort.call(c, function(c1,c2) { return c1.zIndex - c2.zIndex; });
   },
 
   __getChildrenCopy : function() {
@@ -3249,54 +4139,199 @@ CanvasNode = Klass(Animatable, Transformable, {
   },
 
   /**
-    Returns true if the point x,y is inside the path of a drawable node.
-
-    The x,y point is in user-space coordinates, meaning that e.g. the point
-    5,5 will always be inside the rectangle [0, 0, 10, 10], regardless of the
-    transform on the rectangle.
-
-    Leave isPointInPath to false to avoid unnecessary matrix inversions for
-    non-drawables.
-
-    @param x X-coordinate of the point.
-    @param y Y-coordinate of the point.
-    @return Whether the point is inside the path of this node.
-    @type boolean
-    */
+     * Returns true if the point x,y is inside the path of a drawable node.
+     * 
+     * The x,y point is in user-space coordinates, meaning that e.g. the point
+     * 5,5 will always be inside the rectangle [0, 0, 10, 10], regardless of the
+     * transform on the rectangle.
+     * 
+     * Leave isPointInPath to false to avoid unnecessary matrix inversions for
+     * non-drawables.
+     * 
+     * @function
+     * @param x
+     *            X-coordinate of the point.
+     * @param y
+     *            Y-coordinate of the point.
+     * @return {boolean} Whether the point is inside the path of this node.
+     * 
+     */
   isPointInPath : false,
 
-  /**
-    Handles transforming and drawing the node and its childNodes
-    on each frame.
+  createBitmapCache : function(cache_mode) {
+    var old = this.cacheAsBitmap
+    var old_alpha = this.opacity
+    var old_dom = this.DOMelement;
+    this.cacheAsBitmap = null
+    this.needMatrixUpdate = true
+    
+    //CRIO
+    //this.parent.transform(null, true);
+    var st = [];
+    var p = this; while(p) (st.push(p), p = p.parent);
+    while(st.length) {
+    	var item = st.pop();
+    	item.transform(null, true);
+    }
+    
+    this.transform(null, true);
+    
+    var cobj,canvas;
+    if(!this.___savedCacheCanvas) {
+    	canvas = document.createElement('canvas');
+	    cobj = new Canvas(canvas, {
+	        isPlaying: false,
+	        //allowCacheAsBitmap: true,
+	        ignoreEvents: true,
+	        clear: true,
+	        fill : [0,0,0,0]
+	    });
 
-    Pushes context state, applies state transforms and draws the node.
-    Then sorts the node's childNodes by zIndex, smallest first, and
-    calls their handleDraws in that order. Finally, pops the context state.
+    	//this.___savedCacheCanvas = cobj;
+    } else {
+    	cobj = this.___savedCacheCanvas;
+    	canvas = this.___savedCacheCanvas.canvas;
+    }
+    
+    delete canvas.DOMPropertyList;
+   
+    var bmpScale = this.bmpScale || 1;
+   
+    var dctx = cobj.getContext();
+    var p = this.parent;
+    var childs = this.childNodes;
+    var x = this.x;
+    var y = this.y;
 
-    Called after handleUpdate and handlePick.
+    var bb = this.getSubtreeBoundingBox()
 
-    This method should be touched only if you know what you're doing.
-    Overwrite {@link CanvasNode#draw} when you need to draw things.
+    if(!bb) return;
 
-    @param ctx Canvas 2D context
-    */
+    
+    var pm = this.parent.currentMatrix;
+
+    this.needMatrixUpdate = true;
+    this.cacheAsBitmap = null
+    this.DOMelement = null;
+    //this.changed = true
+    this.opacity = 1
+
+    canvas.bmpBoundingBox = bb;//(cache_mode != 'all') ? this.getAxisAlignedBoundingBox() : bb;
+    canvas.bmpScale = this.currentMatrix[0];
+
+	var relscale = bmpScale / this.currentMatrix[0];
+	if(!this.bmpScale) relscale = 1;
+
+	var point = CanvasSupport.tMatrixMultiplyPoint(this.currentMatrix, 0, 0);
+    bb[0] -= point[0];// * bmpScale;
+    bb[1] -= point[1];// * bmpScale;
+
+    cobj.width = canvas.width = bb[2] * relscale;
+    cobj.height = canvas.height = bb[3] * relscale;
+    canvas.style.width = canvas.width + 'px';
+    canvas.style.height = canvas.height + 'px';
+    cobj.x = -(bb[0] + point[0]) * relscale;
+    cobj.y = -(bb[1] + point[1]) * relscale;
+    cobj.scale = relscale;
+    cobj.isFake = true;
+
+    //console.log(['making bmpcache']);//, canvas.bmpBoundingBox]);
+
+    cobj.matrix = pm
+    cobj.changed = true
+    cobj.needMatrixUpdate = true
+
+    this.parent = this.parentNode = null
+    cobj.append(this)
+
+    cobj.onFrame();
+    cobj.remove(this);
+    
+    this.childNodes = childs
+    this.parent = this.parentNode = p
+    
+    this.x = x;
+    this.y = y;
+    
+    this.opacity = old_alpha
+    this.needMatrixUpdate = true
+    this.DOMelement = old_dom;
+    this.cacheAsBitmap = old;
+    this.bmpCache = canvas;
+    this.setRoot(p.root, p.drawRoot);
+    
+    
+    
+    //this.changed = false;
+    this.transform(null, true);
+  },
+
   handleDraw : function(ctx) {
+    
+    if( this.mask ) {
+		ctx.save();
+		this.transform(ctx, false);
+		ctx.beginPath();
+        ctx.rect(this.mask[0], this.mask[1], this.mask[2], this.mask[3]);
+        ctx.clip();
+    }
+    if(!this.root.allowCacheAsBitmap)
+        this.cacheAsBitmap = null
+    
+    if (this.root.drawBoundingBoxes && this.isVisible)
+      this.isVisible(ctx)
+    
+    var ret;
+    if(!this.cacheAsBitmap || this.bmpCache) {
+        ret = this.realHandleDraw(ctx)
+
+	} else {
+		this.createBitmapCache(this.cacheAsBitmap)
+        ret = this.realHandleDraw(ctx);
+	}
+
+    if( this.mask )
+        ctx.restore();
+        
+    return ret;
+  },
+
+  /**
+     * Handles transforming and drawing the node and its childNodes on each
+     * frame.
+     * 
+     * Pushes context state, applies state transforms and draws the node. Then
+     * sorts the node's childNodes by zIndex, smallest first, and calls their
+     * handleDraws in that order. Finally, pops the context state.
+     * 
+     * Called after handleUpdate and handlePick.
+     * 
+     * This method should be touched only if you know what you're doing.
+     * Overwrite {@link CanvasNode#draw} when you need to draw things.
+     * 
+     * @private
+     * @param ctx
+     *            Canvas 2D context
+     */
+  realHandleDraw : function(ctx) {
     // CSS display & visibility
     if (this.display)
       this.visible = (this.display != 'none')
     if (this.visibility)
       this.drawable = (this.visibility != 'hidden')
     if (!this.visible) return
-    ctx.save()
-    var pff = ctx.fontFamily
-    var pfs = ctx.fontSize
-    var pfo = ctx.fillOn
-    var pso = ctx.strokeOn
-    if (this.fontFamily)
-      ctx.fontFamily = this.fontFamily
-    if (this.fontSize)
-      ctx.fontSize = this.fontSize
-    this.transform(ctx)
+    //ctx.save()
+    //var pff = ctx.fontFamily
+    //var pfs = ctx.fontSize
+    //var pfo = ctx.fillOn
+    //var pso = ctx.strokeOn
+    //if (this.fontFamily)
+    //  ctx.fontFamily = this.fontFamily
+    //if (this.fontSize)
+    //  ctx.fontSize = this.fontSize
+
+    //this.previousBoundingBox = this.getAxisAlignedBoundingBox();
+
     if (this.clipPath) {
       ctx.beginPath()
       if (this.clipPath.units == this.OBJECTBOUNDINGBOX) {
@@ -3312,105 +4347,186 @@ CanvasNode = Klass(Animatable, Transformable, {
         ctx.clip()
       }
     }
-    if (this.drawable && this.draw)
-      this.draw(ctx)
-    var c = this.__getChildrenCopy()
-    this.__zSort(c);
-    for(var i=0; i<c.length; i++) {
-      c[i].handleDraw(ctx)
+    
+    var not_in_region = false;
+    if(this.root.dirtyBB && this.previousBoundingBox && 0) {
+    	var sbb = this.previousBoundingBox;
+    	var obb = this.root.dirtyBB;
+    	
+    	var x_clear = ((sbb[0] + sbb[2]) < obb[0]) || 
+    	   ((obb[0] + obb[2]) < sbb[0]);
+    	var y_clear = ((sbb[1] + sbb[3]) < obb[1]) || 
+           ((obb[1] + obb[3]) < sbb[1]);
+           
+        not_in_region = x_clear && y_clear;
+        
+        //if(not_in_region)
+        //    console.log('clear!');
     }
-    ctx.fontFamily = pff
-    ctx.fontSize = pfs
-    ctx.fillOn = pfo
-    ctx.strokeOn = pso
-    ctx.restore()
+
+    var restore_after = false;
+    if (((this.drawable && this.draw) || this.bmpCache !== null || this.parent == this) && not_in_region === false) {
+      if(this.opacity !== null || this.font !== null || this.fill !== null || this.stroke ) {
+        ctx.save();
+        restore_after = true;
+      }
+      
+      this.transform(ctx, false);
+      
+      //this.previousBoundingBox = this.getAxisAlignedBoundingBox();
+      
+      if(this.bmpCache) {
+        var bb = this.bmpCache.bmpBoundingBox;//this.getSubtreeBoundingBox(true);
+		var point = CanvasSupport.tMatrixMultiplyPoint(this.currentMatrix, 0, 0);
+		
+		var dscale = 1;
+		
+		
+		if(this.bmpScale) {
+            /*bb = this.bmpCache.relativeBmpBoundingBox;
+            point = [0,0];
+            bb = this.transformBoundingBoxBy(bb, this.parent.currentMatrix);*/
+            
+            dscale = 1;//this.bmpScale;
+            
+            dscale = this.currentMatrix[0] / this.bmpCache.bmpScale;
+        }
+		
+        // console.log("drawing bitmap " + (this.id || 'uk'));
+        //ctx.save();
+        ctx.setTransform(1,0,0,1,0,0);
+        //console.log(cbb);
+        var pbb = [point[0] + bb[0] * dscale, 
+       		point[1] + bb[1] * dscale, (bb[2]) * dscale, (bb[3]) * dscale];
+       	if(pbb[2] && pbb[3]) 
+       	    ctx.drawImage(this.bmpCache, pbb[0], pbb[1], pbb[2], pbb[3]);
+        //ctx.restore();      
+      } else {
+        this.draw(ctx)
+        // if(this.id != 'root')
+        // console.log("drawing non bitmap " + (this.id || 'uk'));
+      }
+    } else
+    	this.transform(null, true);
+
+    if(!this.cacheAsBitmap || this.root.isFake) {
+        var c = this.childNodes; //this.__getChildrenCopy()
+        //this.__zSort(c)
+        for(var i=0; i<c.length; i++) {
+             c[i].handleDraw(ctx)
+        }
+    }
+    
+    if(restore_after)
+        ctx.restore();
+    
+    //ctx.fontFamily = pff
+    //ctx.fontSize = pfs
+    //ctx.fillOn = pfo
+    //ctx.strokeOn = pso
+    //ctx.restore()
   },
 
   /**
-    Transforms the context state according to this node's attributes.
-
-    @param ctx Canvas 2D context
-    @param onlyTransform If set to true, only do matrix transforms.
-    */
+     * Transforms the context state according to this node's attributes.
+     * 
+     * @param ctx {CanvasRenderingContext2D}
+     *            Canvas 2D context
+     * @param onlyTransform
+     *            If set to true, only do matrix transforms.
+     */
   transform : function(ctx, onlyTransform) {
-    Transformable.prototype.transform.call(this, ctx)
+    //Transformable.prototype.transform.call(this, ctx)
+    this.__transform(ctx);
 
     if (onlyTransform) return
 
+	//this.root.curState = this.root.curState || {};
+
     // stroke / fill modifiers
-    if (this.fill != null) {
-      if (!this.fill || this.fill == 'none') {
-        ctx.fillOn = false
+    if (this.fill !== null) {
+      if (!this.fill || this.fill === 'none') {
+        ctx.fillOn = false;
       } else {
-        ctx.fillOn = true
-        if (this.fill != true) {
+        ctx.fillOn = true;
+        if (this.fill !== true) {
           var fillStyle = Colors.parseColorStyle(this.fill, ctx)
-          ctx.setFillStyle( fillStyle )
+            ctx.setFillStyle( fillStyle )
         }
       }
     }
-    if (this.stroke != null) {
-      if (!this.stroke || this.stroke == 'none') {
+    
+    if (this.stroke !== null) {
+      if (!this.stroke || this.stroke === 'none') {
         ctx.strokeOn = false
       } else {
         ctx.strokeOn = true
-        if (this.stroke != true)
+        if (this.stroke !== true)
           ctx.setStrokeStyle( Colors.parseColorStyle(this.stroke, ctx) )
       }
     }
-    if (this.strokeWidth != null)
+    if (this.strokeWidth !== null)
       ctx.setLineWidth( this.strokeWidth )
-    if (this.lineCap != null)
+    if (this.lineCap !== null)
       ctx.setLineCap( this.lineCap )
-    if (this.lineJoin != null)
+    if (this.lineJoin !== null)
       ctx.setLineJoin( this.lineJoin )
-    if (this.miterLimit != null)
+    if (this.miterLimit !== null)
       ctx.setMiterLimit( this.miterLimit )
-
+ 
     // compositing modifiers
-    if (this.absoluteOpacity != null)
+    if (this.absoluteOpacity !== null)
       ctx.setGlobalAlpha( this.absoluteOpacity )
-    if (this.opacity != null)
+    if (this.opacity !== null)
       ctx.setGlobalAlpha( ctx.globalAlpha * this.opacity )
-    if (this.compositeOperation != null)
+    if (this.compositeOperation !== null)
       ctx.setGlobalCompositeOperation( this.compositeOperation )
 
     // shadow modifiers
-    if (this.shadowColor != null)
+    if (this.shadowColor !== null)
       ctx.setShadowColor( Colors.parseColorStyle(this.shadowColor, ctx) )
-    if (this.shadowBlur != null)
+    if (this.shadowBlur !== null)
       ctx.setShadowBlur( this.shadowBlur )
-    if (this.shadowOffsetX != null)
+    if (this.shadowOffsetX !== null)
       ctx.setShadowOffsetX( this.shadowOffsetX )
-    if (this.shadowOffsetY != null)
+    if (this.shadowOffsetY !== null)
       ctx.setShadowOffsetY( this.shadowOffsetY )
 
     // text modifiers
-    if (this.textAlign != null)
+    if (this.textAlign !== null)
       ctx.setTextAlign( this.textAlign )
-    if (this.textBaseline != null)
+    if (this.textBaseline !== null)
       ctx.setTextBaseline( this.textBaseline )
-    if (this.font != null)
+    if (this.font !== null)
       ctx.setFont( this.font )
+    else if(this.fontFamily)
+      ctx.setFont((this.fontSize || 12) + 'px ' + this.fontFamily);
+      
   },
 
   /**
-    Draws the picking path for the node for testing if the mouse cursor
-    is inside the node.
-
-    False by default, overwrite if you need special behaviour.
-
-    @param ctx Canvas 2D context
-    */
+     * Draws the picking path for the node for testing if the mouse cursor is
+     * inside the node.
+     * 
+     * False by default, overwrite if you need special behaviour.
+     * 
+     * @function
+     * @private
+     * @param ctx
+     *            Canvas 2D context
+     */
   drawPickingPath : false,
 
   /**
-    Draws the node.
-
-    False by default, overwrite to actually draw something.
-
-    @param ctx Canvas 2D context
-    */
+     * Draws the node.
+     * 
+     * False by default, overwrite to actually draw something.
+     * 
+     * @function 
+     * @private
+     * @param ctx
+     *            Canvas 2D context
+     */
   draw : false,
 
   createSubtreePath : function(ctx, skipTransform) {
@@ -3422,24 +4538,27 @@ CanvasNode = Klass(Animatable, Transformable, {
   },
 
   getSubtreeBoundingBox : function(identity) {
-    if (identity) {
-      var p = this.parent
-      this.parent = null
-      this.needMatrixUpdate = true
+    if(identity === true) 
+        identity = [1,0,0,1,0,0];
+    if(identity) {
+    	//CRIO
+    	if(this.needMatrixUpdate)
+    		this.transform(null, true);
+        identity = CanvasSupport.tMatrixMultiply(CanvasSupport.tMatrixMultiply(
+          [1,0,0,1,0,0], identity), this.relativeMatrix);
     }
-    var bb = this.getAxisAlignedBoundingBox()
+    
+    var bb = this.getAxisAlignedBoundingBox(identity)
     for (var i=0; i<this.childNodes.length; i++) {
-      var cbb = this.childNodes[i].getSubtreeBoundingBox()
+      var cbb = this.childNodes[i].getSubtreeBoundingBox(identity)
+
       if (!bb) {
         bb = cbb
       } else if (cbb) {
         this.mergeBoundingBoxes(bb, cbb)
       }
     }
-    if (identity) {
-      this.parent = p
-      this.needMatrixUpdate = true
-    }
+
     return bb
   },
 
@@ -3447,29 +4566,48 @@ CanvasNode = Klass(Animatable, Transformable, {
     var obx = bb[0], oby = bb[1]
     if (bb[0] > bb2[0]) bb[0] = bb2[0]
     if (bb[1] > bb2[1]) bb[1] = bb2[1]
-    bb[2] = bb[2] + obx - bb[0]
-    bb[3] = bb[3] + oby - bb[1]
+    bb[2] += obx-bb[0]
+    bb[3] += oby-bb[1]
     if (bb[2]+bb[0] < bb2[2]+bb2[0]) bb[2] = bb2[2]+bb2[0]-bb[0]
     if (bb[3]+bb[1] < bb2[3]+bb2[1]) bb[3] = bb2[3]+bb2[1]-bb[1]
   },
 
-  getAxisAlignedBoundingBox : function() {
-    this.transform(null, true)
-    if (!this.getBoundingBox) return null
-    var bbox = this.getBoundingBox()
-    var xy1 = CanvasSupport.tMatrixMultiplyPoint(this.currentMatrix,
+  transformBoundingBoxBy: function(bbox, m) {
+    var xy1 = CanvasSupport.tMatrixMultiplyPoint(m,
       bbox[0], bbox[1])
-    var xy2 = CanvasSupport.tMatrixMultiplyPoint(this.currentMatrix,
+    var xy2 = CanvasSupport.tMatrixMultiplyPoint(m,
       bbox[0]+bbox[2], bbox[1]+bbox[3])
-    var xy3 = CanvasSupport.tMatrixMultiplyPoint(this.currentMatrix,
+    var xy3 = CanvasSupport.tMatrixMultiplyPoint(m,
       bbox[0], bbox[1]+bbox[3])
-    var xy4 = CanvasSupport.tMatrixMultiplyPoint(this.currentMatrix,
+    var xy4 = CanvasSupport.tMatrixMultiplyPoint(m,
       bbox[0]+bbox[2], bbox[1])
     var x1 = Math.min(xy1[0], xy2[0], xy3[0], xy4[0])
     var x2 = Math.max(xy1[0], xy2[0], xy3[0], xy4[0])
     var y1 = Math.min(xy1[1], xy2[1], xy3[1], xy4[1])
     var y2 = Math.max(xy1[1], xy2[1], xy3[1], xy4[1])
     return [x1, y1, x2-x1, y2-y1]
+  },
+
+  getAxisAlignedBoundingBox : function(identity) {
+  	//CRIO
+    if(this.needMatrixUpdate)
+    	this.transform(null, true);
+    		
+    if (!this.getBoundingBox)
+    	return null;
+
+    //if(identity && this.lastIdentityAABB)
+    //    return this.lastIdentityAABB
+    if(!identity && this.lastAABB)
+        return this.lastAABB;
+    
+    var bbox = this.getBoundingBox()
+    var ret = this.transformBoundingBoxBy(bbox, identity || this.currentMatrix)
+    
+    if(identity)
+        return this.lastIdentityAABB = ret
+    
+    return this.lastAABB = ret
   },
 
   makeDraggable : function() {
@@ -3487,87 +4625,73 @@ CanvasNode = Klass(Animatable, Transformable, {
       return false;
     }, false);
   }
-})
+};
 
+/*
+    function CanvasNode() {
+	     this.initialize.apply(this, arguments)
+	}
+	
+	CanvasNode.prototype = {};
+	
+	CanvasNode.Extenze(Transformable, Animatable);
+ */
+Profiler.wrap_class(CanvasNode, "CanvasNode");
+CanvasNode.Extenze(Transformable, Animatable);
+
+//CanvasNode = Klass(Animatable, Transformable, CanvasNode);
 
 /**
-  Canvas is the canvas manager class.
-  It takes care of updating and drawing its childNodes on a canvas element.
-
-  An example with a rotating rectangle:
-
-    var c = E.canvas(500, 500)
-    var canvas = new Canvas(c)
-    var rect = new Rectangle(100, 100)
-    rect.x = 250
-    rect.y = 250
-    rect.fill = true
-    rect.fillStyle = 'green'
-    rect.addFrameListener(function(t) {
-      this.rotation = ((t / 3000) % 1) * Math.PI * 2
-    })
-    canvas.append(rect)
-    document.body.appendChild(c)
-
-
-  To use the canvas as a manually updated image:
-
-    var canvas = new Canvas(E.canvas(200,40), {
-      isPlaying : false,
-      redrawOnlyWhenChanged : true
-    })
-    var c = new Circle(20)
-    c.x = 100
-    c.y = 20
-    c.fill = true
-    c.fillStyle = 'red'
-    c.addFrameListener(function(t) {
-      if (this.root.absoluteMouseX != null) {
-        this.x = this.root.mouseX // relative to canvas surface
-        this.root.changed = true
-      }
-    })
-    canvas.append(c)
-
-
-  Or by using raw onFrame-calls:
-
-    var canvas = new Canvas(E.canvas(200,40), {
-      isPlaying : false,
-      fill : true,
-      fillStyle : 'white'
-    })
-    var c = new Circle(20)
-    c.x = 100
-    c.y = 20
-    c.fill = true
-    c.fillStyle = 'red'
-    canvas.append(c)
-    canvas.onFrame()
-
-
-  Which is also the recommended way to use a canvas inside another canvas:
-
-    var canvas = new Canvas(E.canvas(200,40), {
-      isPlaying : false
-    })
-    var c = new Circle(20, {
-      x: 100, y: 20,
-      fill: true, fillStyle: 'red'
-    })
-    canvas.append(c)
-
-    var topCanvas = new Canvas(E.canvas(500, 500))
-    var canvasImage = new ImageNode(canvas.canvas, {x: 250, y: 250})
-    topCanvas.append(canvasImage)
-    canvasImage.addFrameListener(function(t) {
-      this.rotation = (t / 3000 % 1) * Math.PI * 2
-      canvas.onFrame(t)
-    })
-
-  */
-Canvas = Klass(CanvasNode, {
-
+ * Canvas is the canvas manager class. It takes care of updating and drawing its
+ * childNodes on a canvas element.
+ * 
+ * An example with a rotating rectangle:
+ * 
+ * var c = E.canvas(500, 500) var canvas = new Canvas(c) var rect = new
+ * Rectangle(100, 100) rect.x = 250 rect.y = 250 rect.fill = true rect.fillStyle =
+ * 'green' rect.addFrameListener(function(t) { this.rotation = ((t / 3000) % 1) *
+ * Math.PI * 2 }) canvas.append(rect) document.body.appendChild(c)
+ * 
+ * 
+ * To use the canvas as a manually updated image:
+ * 
+ * var canvas = new Canvas(E.canvas(200,40), { isPlaying : false,
+ * redrawOnlyWhenChanged : true }) var c = new Circle(20) c.x = 100 c.y = 20
+ * c.fill = true c.fillStyle = 'red' c.addFrameListener(function(t) { if
+ * (this.root.absoluteMouseX != null) { this.x = this.root.mouseX // relative to
+ * canvas surface this.root.changed = true } }) canvas.append(c)
+ * 
+ * 
+ * Or by using raw onFrame-calls:
+ * 
+ * var canvas = new Canvas(E.canvas(200,40), { isPlaying : false, fill : true,
+ * fillStyle : 'white' }) var c = new Circle(20) c.x = 100 c.y = 20 c.fill =
+ * true c.fillStyle = 'red' canvas.append(c) canvas.onFrame()
+ * 
+ * 
+ * Which is also the recommended way to use a canvas inside another canvas:
+ * 
+ * var canvas = new Canvas(E.canvas(200,40), { isPlaying : false }) var c = new
+ * Circle(20, { x: 100, y: 20, fill: true, fillStyle: 'red' }) canvas.append(c)
+ * 
+ * var topCanvas = new Canvas(E.canvas(500, 500)) var canvasImage = new
+ * ImageNode(canvas.canvas, {x: 250, y: 250}) topCanvas.append(canvasImage)
+ * canvasImage.addFrameListener(function(t) { this.rotation = (t / 3000 % 1) *
+ * Math.PI * 2 canvas.onFrame(t) })
+ * 
+ * @constructor
+ * @extends CanvasNode
+ * 
+ * @property redrawOnlyWhatChanged Use dirty regions with the canvas to draw
+ *      only changed portions of the screen.
+ * @property redrawOnlyWhenChanged Run draw chain only when a change is made.
+ * @property allowCacheAsBitmap Whether to allow cacheAsBitmap
+ * @proeprty legacyCake Set this to true to enable old-school cake mode.
+ */
+function Canvas() {
+	Canvas.prototype.initialize.apply(this, arguments)
+}
+Canvas.prototype = {
   clear : true,
   frameLoop : false,
   recording : false,
@@ -3587,43 +4711,71 @@ Canvas = Klass(CanvasNode, {
   playOnlyWhenFocused : true,
   isPlaying : true,
   redrawOnlyWhenChanged : false,
+  legacyCake : false,
   changed : true,
   drawBoundingBoxes : false,
+  globalAlpha: 1,
   cursor : 'default',
 
+  font: '12px bold',
+  align : 'start',
+  fontSize: 12,
+  fontFamily: "Arial",
+  textBaseline : 'alphabetic',
+
   mouseDown : false,
-  mouseEvents : [],
+  mouseEvents : null,
+  
+  dirtyRegions : null,
+  allowCacheAsBitmap : false,
+  redrawOnlyWhatChanged : false,
+  enableBox2D: false,
+  isFake: false,
+  
+  
 
   // absolute pixel coordinates from canvas top-left
   absoluteMouseX : null,
   absoluteMouseY : null,
 
-  /*
-    Coordinates relative to the canvas's surface scale.
-    Example:
-      canvas.width
-      #=> 100
-      canvas.style.width
-      #=> '100px'
-      canvas.absoluteMouseX
-      #=> 50
-      canvas.mouseX
-      #=> 50
-
-      canvas.style.width = '200px'
-      canvas.width
-      #=> 100
-      canvas.absoluteMouseX
-      #=> 100
-      canvas.mouseX
-      #=> 50
+  /**
+  * Coordinates relative to the canvas's surface scale. Example: canvas.width
+  * #=> 100 canvas.style.width #=> '100px' canvas.absoluteMouseX #=> 50
+  * canvas.mouseX #=> 50
+  * 
+  * canvas.style.width = '200px' canvas.width #=> 100 canvas.absoluteMouseX
+  * #=> 100 canvas.mouseX #=> 50
   */
   mouseX : null,
   mouseY : null,
 
   elementNodeZIndexCounter : 0,
 
-  initialize : function(canvas, config) {
+  /** @override */ initialize : function(canvas, config) {
+  	config = config || {}
+    this.mouseEvents = []
+    this.dirtyRegions = []
+    this.requestAnimFrame = config.requestAnimFrame || window.requestAnimFrame;
+    
+    if(!arguments.length) return;
+        
+    var gl;
+        
+    this.lastFPSTime = (new Date()).getTime() / 1000;
+    this.calcFPSAccum = 0;
+    this.frameCount = 0;
+    this.root = this.drawRoot = this;
+        
+    var vertices = [
+        0, 1, 0,
+        0, 0, 0,
+        1, 1, 0,
+        1, 0, 0
+    ];
+    var texmap = [0,1,0,0,1,1,1,0];
+    
+    
+    
     if (arguments.length > 2) {
       var container = arguments[0]
       var w = arguments[1]
@@ -3640,20 +4792,28 @@ Canvas = Klass(CanvasNode, {
     CanvasNode.initialize.call(this, config)
     this.mouseEventStack = []
     this.canvas = canvas
+    if(config.playOnlyWhenFocused !== undefined)
+        this.playOnlyWhenFocused = config.playOnlyWhenFocused;
+    
+    
+
     canvas.canvas = this
     this.width = this.canvas.width
     this.height = this.canvas.height
+
     var th = this
     this.frameHandler = function() { th.onFrame() }
-    this.canvas.addEventListener('DOMNodeInserted', function(ev) {
-      if (ev.target == this)
-        th.addEventListeners()
-    }, false)
-    this.canvas.addEventListener('DOMNodeRemoved', function(ev) {
-      if (ev.target == this)
-        th.removeEventListeners()
-    }, false)
-    if (this.canvas.parentNode) this.addEventListeners()
+    if(!th.ignoreEvents) {
+	    this.canvas.addEventListener('DOMNodeInserted', function(ev) {
+	      if (ev.target == this)
+	        th.addEventListeners()
+	    }, false)
+	    this.canvas.addEventListener('DOMNodeRemoved', function(ev) {
+	      if (ev.target == this)
+	        th.removeEventListeners()
+	    }, false)
+	    if (this.canvas.parentNode) this.addEventListeners()
+    }
     this.startTime = new Date().getTime()
     if (this.isPlaying)
       this.play()
@@ -3666,14 +4826,19 @@ Canvas = Klass(CanvasNode, {
   addEventListeners : function() {
     var th = this
     this.canvas.parentNode.addMouseEvent = function(e){
+      if(e.__setX !== undefined) return;
+        
       var xy = Mouse.getRelativeCoords(this, e)
+      
       th.absoluteMouseX = xy.x
       th.absoluteMouseY = xy.y
       var style = document.defaultView.getComputedStyle(th.canvas,"")
       var w = parseFloat(style.getPropertyValue('width'))
       var h = parseFloat(style.getPropertyValue('height'))
-      th.mouseX = th.absoluteMouseX * (w / th.canvas.width)
-      th.mouseY = th.absoluteMouseY * (h / th.canvas.height)
+      e.canvasX = e.__setX = e.clientX = e.x = e.pageX = th.mouseX = th.absoluteMouseX / 
+        (w / th.canvas.width);
+      e.canvasY = e.__setY = e.clientY = e.y = e.pageY = th.mouseY = th.absoluteMouseY / 
+        (h / th.canvas.height);
       th.addMouseEvent(th.mouseX, th.mouseY, th.mouseDown)
     }
     this.canvas.parentNode.contains = this.contains
@@ -3687,12 +4852,30 @@ Canvas = Klass(CanvasNode, {
         if (th.keyTarget)
           th.dispatchEvent({type: 'focus', canvasTarget: th.keyTarget})
       }
+
       this.addMouseEvent(e)
     }, true)
 
     this.canvas.parentNode.addEventListener('mouseup', function(e) {
-      this.addMouseEvent(e)
       th.mouseDown = false
+
+      var nev = document.createEvent('MouseEvents')
+      nev.initMouseEvent('mouseup', true, true, window, e.detail,
+          e.screenX, e.screenY, e.clientX, e.clientY, e.ctrlKey, e.altKey,
+          e.shiftKey, e.metaKey, e.button, e.relatedTarget)
+
+      nev.clientX = e.clientX
+      nev.clientY = e.clientY
+      
+      this.addMouseEvent(nev)
+      this.addMouseEvent(e)
+
+      //!th.keyTarget || !th.keyTarget.specialFocus 
+      //   || (console.log('spec focus'), th.keyTarget.dispatchEvent(nev))
+      
+      if(th.specialFocus)
+      	th.specialFocus.dispatchEvent(nev);
+
     }, true)
 
     this.canvas.parentNode.addEventListener('mousemove', function(e) {
@@ -3701,6 +4884,16 @@ Canvas = Klass(CanvasNode, {
         th.prevClientX = e.clientX
         th.prevClientY = e.clientY
       }
+      if(th.specialFocus) {
+      	var nev = document.createEvent('MouseEvents')
+        nev.initMouseEvent('mousemove', true, true, window, e.detail,
+          e.screenX, e.screenY, e.clientX, e.clientY, e.ctrlKey, e.altKey,
+          e.shiftKey, e.metaKey, e.button, e.relatedTarget)
+        nev.canvasTarget = th.specialFocus
+        this.addMouseEvent(nev)
+        th.dispatchEvent(nev);
+      }
+      
       if (th.dragTarget) {
         var nev = document.createEvent('MouseEvents')
         nev.initMouseEvent('drag', true, true, window, e.detail,
@@ -3742,8 +4935,13 @@ Canvas = Klass(CanvasNode, {
 
     this.canvas.parentNode.addEventListener('mouseout', function(e) {
       if (!CanvasNode.contains.call(this, e.relatedTarget))
-        th.absoluteMouseX = th.absoluteMouseY = th.mouseX = th.mouseY = null
+       th.absoluteMouseX = th.absoluteMouseY = th.mouseX = th.mouseY = null
     }, true)
+    
+    this.canvas.parentNode.addEventListener('taphold', function(e) {
+
+        e.preventDefault()
+    });
 
     var dispatch = this.dispatchEvent.bind(this)
     var types = [
@@ -3751,9 +4949,12 @@ Canvas = Klass(CanvasNode, {
       'click', 'dblclick',
       'mousedown', 'mouseup',
       'keypress', 'keydown', 'keyup',
-      'DOMMouseScroll', 'mousewheel', 'mousemultiwheel', 'textInput',
-      'focus', 'blur'
+      'DOMMouseScroll', 
+      //'mousewheel', 'mousemultiwheel', 
+      'textInput', 'focus', 'blur'
     ]
+    
+    types = types.concat(this.extraMouseEventForwardTypes || []);
     for (var i=0; i<types.length; i++) {
       this.canvas.parentNode.addEventListener(types[i], dispatch, false)
     }
@@ -3775,6 +4976,14 @@ Canvas = Klass(CanvasNode, {
           ev.canvasTarget = th.keyTarget
           th.dispatchEvent(ev)
         }
+      },
+      
+      mousewheel : function(ev) {
+          return th.broadcastEvent(ev)
+      },
+      
+      mousemultiwheel : function(ev) {
+          return th.broadcastEvent(ev)
       },
 
       // do we even want to have this?
@@ -3810,8 +5019,10 @@ Canvas = Klass(CanvasNode, {
           th.dispatchEvent(nev)
           th.dragTarget = false
         }
+        
         if (!th.canvas.parentNode.contains(e.target)) {
-          var rv = th.dispatchEvent(e)
+          var rv;// = th.dispatchEvent(e)
+
           if (th.keyTarget) {
             th.dispatchEvent({type: 'blur', canvasTarget: th.keyTarget})
             th.keyTarget = null
@@ -3907,21 +5118,23 @@ Canvas = Klass(CanvasNode, {
       },
       run : function() {
         if (fl.running) {
+          var st = +new Date;
           self.onFrame();
-          requestAnimFrame(fl.run, self.canvas);
+          var dt = +new Date - st;
+          self.requestAnimFrame.call(window, fl.run, self.canvas.parentNode, dt);
         }
       }
     };
-    requestAnimFrame(fl.run, this.canvas);
+    this.requestAnimFrame.call(window, fl.run, this.canvas);
     return fl;
   },
 
   /**
-    Start frame loop.
-
-    The frame loop is an interval, where #onFrame is called every
-    #frameDuration milliseconds.
-    */
+     * Start frame loop.
+     * 
+     * The frame loop is an interval, where #onFrame is called every
+     * #frameDuration milliseconds.
+     */
   play : function() {
     this.stop();
     this.realTime = new Date().getTime();
@@ -3930,8 +5143,8 @@ Canvas = Klass(CanvasNode, {
   },
 
   /**
-    Stop frame loop.
-    */
+     * Stop frame loop.
+     */
   stop : function() {
     this.__blurStop = false;
     if (this.frameLoop) {
@@ -3942,6 +5155,18 @@ Canvas = Klass(CanvasNode, {
   },
 
   dispatchEvent : function(ev) {
+    if(ev.type == 'mousedown' || ev.type == 'mouseup' || ev.type == 'mousemove'  
+          /* && (ev.__setX != this.mouseX || ev.__setY != this.mouseY)*/) {
+        var ctx = this.getContext()
+        
+        this.canvas.parentNode.addMouseEvent(ev);
+        
+        //console.log('pick again', ev)
+
+        if(!(this.numPicks > 1 && ev.type == 'mousemove'))
+            this.handlePick(ctx);
+    }
+    
     var rv = CanvasNode.prototype.dispatchEvent.call(this, ev)
     if (ev.cursor) {
       if (this.canvas.style.cursor != ev.cursor)
@@ -3952,42 +5177,108 @@ Canvas = Klass(CanvasNode, {
     }
     return rv
   },
+  
+  handleRedrawRegion : function(ctx, dont_walk) {
 
-  /**
-    The frame loop function. Called every #frameDuration milliseconds.
-    Takes an optional external time parameter (for syncing Canvases with each
-    other, e.g. when using a Canvas as an image.)
+    if(this.redrawOnlyWhatChanged || this.showRedrawRegions)
+        if(!dont_walk) CanvasNode.prototype.handleRedrawRegion.call(this, ctx);
+        
+    //console.log('region length ' + this.dirtyRegions.length)
 
-    If the time parameter is given, the second parameter is used as the frame
-    time delta (i.e. the time elapsed since last frame.)
+    this.dirtyBB = null;
+    ctx.beginPath();
 
-    If time or timeDelta is not given, the canvas computes its own timeDelta.
+    if(this.redrawOnlyWhatChanged && !this.showRedrawRegions) {
+        for(var i = 0 ; i < this.dirtyRegions.length ; i++) {
+            var reg = this.dirtyRegions[i];
+            reg = [reg[0] - 5, reg[1] - 5, reg[2] + 10, reg[3] + 10];
+     
+            if(!this.dirtyBB)
+                this.dirtyBB = reg;
+            else
+                this.dirtyBB = this.mergeBoundingBoxes(this.dirtyBB, reg);
+     		
+            if(this.clear) ctx.clearRect(parseInt(reg[0]) - 5, parseInt(reg[1]) - 5, parseInt(reg[2]) + 10, parseInt(reg[3]) + 10);
+            ctx.rect(parseInt(reg[0]) - 5, parseInt(reg[1]) - 5, parseInt(reg[2]) + 10, parseInt(reg[3]) + 10)
+        }
+        
+        
+    
+        if(!this.dirtyRegions.length)
+            ctx.rect(0, 0, 100, 100)
+            
+        ctx.clip();
+    } else {
+        //ctx.rect(0, 0, this.width, this.height)
+        //ctx.clip();
+        if(this.clear) ctx.clearRect(0, 0, this.width, this.height);
+    }
 
-    @param time The external time. Optional.
-    @param timeDelta Time since last frame in milliseconds. Optional.
-    */
-  onFrame : function(time, timeDelta) {
-    this.elementNodeZIndexCounter = 0
-    var ctx = this.getContext()
-    try {
-      var realTime = new Date().getTime()
-      this.currentRealElapsed = (realTime - this.realTime)
-      this.currentRealFps = 1000 / this.currentRealElapsed
-      var dt = this.frameDuration * this.speed
-      if (!this.fixedTimestep)
-        dt = this.currentRealElapsed * this.speed
-      this.realTime = realTime
-      if (time != null) {
-        this.time = time
-        if (timeDelta)
-          dt = timeDelta
-      } else {
-        this.time += dt
-      }
-      this.previousTarget = this.target
-      this.target = null
-      if (this.catchMouse)
-        this.handlePick(ctx)
+    if(this.dirtyRegions.length)
+        this.oldRegions = this.dirtyRegions;
+        
+    this.dirtyRegions = []
+  },
+  
+  drawRedrawRegion : function(ctx) {
+    //console.log('region lengthd ' + this.oldRegions.length)
+
+	this.oldRegions = this.oldRegions || [];
+
+    if(this.redrawOnlyWhatChanged) {
+    	ctx.save();
+    	ctx.setTransform(1,0,0,1,0,0);
+        ctx.rect(0, 0, this.width, this.height)
+        ctx.clip();
+        
+        ctx.beginPath()
+        
+        for(var i = 0 ; i < this.oldRegions.length ; i++) {
+            
+            var reg = this.oldRegions[i]
+     
+            ctx.rect(reg[0] - 5, reg[1] - 5, reg[2] + 10, reg[3] + 10)
+        }
+        
+        ctx.fillStyle = 'rgba(255,0,0,0.4)';
+        ctx.fill()
+    
+        ctx.strokeStyle = 'rgb(255,0,0)';
+        ctx.stroke()
+        
+        if(!this.oldRegions.length) {
+            //ctx.rect(0, 0, this.width, this.height)
+            //ctx.fillStyle = 'rgba(0,255,0,0.3)';
+            //ctx.fill()
+        }
+        
+        this.oldRegions = [];
+        
+        ctx.restore();
+    }
+  },
+
+  handleDraw : function(ctx) {
+    this.nDraws++;
+    ctx.save()
+    ctx.setTransform(1,0,0,1,0,0);
+    this.handleRedrawRegion(ctx)
+    CanvasNode.prototype.handleDraw.apply(this, arguments)
+    !this.showRedrawRegions || this.drawRedrawRegion(ctx)
+    ctx.restore()
+  },
+  
+  handlePick : function(ctx) {
+  	this.pickStack = [];
+  	
+  	this.numPicks++;
+  	
+  	ctx.save();
+  	ctx.setTransform(1,0,0,1,0,0);
+    CanvasNode.prototype.handlePick.apply(this, arguments);
+    
+    ctx.restore();
+    
       if (this.previousTarget != this.target) {
         if (this.previousTarget) {
           var nev = document.createEvent('MouseEvents')
@@ -4004,29 +5295,141 @@ Canvas = Klass(CanvasNode, {
           this.dispatchEvent(nev)
         }
       }
-      this.handleUpdate(this.time, dt)
-      this.clearMouseEvents()
-      if (!this.redrawOnlyWhenChanged || this.changed) {
-        try {
+  },
+  
+  
+
+  /**
+     * The frame loop function. Called every #frameDuration milliseconds. Takes
+     * an optional external time parameter (for syncing Canvases with each
+     * other, e.g. when using a Canvas as an image.)
+     * 
+     * If the time parameter is given, the second parameter is used as the frame
+     * time delta (i.e. the time elapsed since last frame.)
+     * 
+     * If time or timeDelta is not given, the canvas computes its own timeDelta.
+     * 
+     * @param time
+     *            The external time. Optional.
+     * @param timeDelta
+     *            Time since last frame in milliseconds. Optional.
+     */
+  onFrame : function(time, timeDelta) {
+    this.elementNodeZIndexCounter = 0
+    this.drawOrderZIndexCounter = 0;
+    
+    Canvas.count = (Canvas.count || 0) + 1;
+    
+    //if(this.numMatrixUpdates > 15 || this.numRelMatrixUpdates > 15) {
+    if(!(Canvas.count % (60 * 3))) {
+    	//console.log("this.numMatrixUpdates " + [this.numMatrixUpdates, this.numRelMatrixUpdates].join(','));
+    }
+    
+    if(this.numDOMUpdates > 15) {
+    	//console.log("this.numDOMUpdates " + this.numDOMUpdates);
+    }
+
+    var ctx = this.getContext()
+    try {
+      var realTime = (new Date()).getTime()
+      this.currentRealElapsed = (realTime - this.realTime);
+      
+      //if(this.currentRealElapsed < (this.frameLimit || 0) / 1.5)
+      //      return;
+	  
+	  if (SHOW_FPS == true) {
+		  this.currentRealFps = 1000 / this.currentRealElapsed
+		  
+		  var nt = realTime / 1000;
+			//console.log((nt - this.lastFPSTime));
+		  if((nt - this.lastFPSTime) > 1) {
+			console.log(parseInt(this.frameCount / 
+			   (nt - this.lastFPSTime) * 100) / 100 + " fps");
+			console.log(parseInt(1000 * this.frameCount / this.calcFPSAccum 
+				* 100) / 100 + " calcFps");
+			
+			
+			console.log("this.numMatrixUpdates " + [this.numMatrixUpdates / this.frameCount , 
+				this.numRelMatrixUpdates / this.frameCount ].join(','));
+				
+			//console.log(['numChanged', this.numChanged / this.frameCount, 
+			//	'numChangedTrue', this.numChangedTrue / this.frameCount]);
+				
+		    this.numMatrixUpdates = 0;
+			this.numRelMatrixUpdates = 0;
+			this.numDOMUpdates = 0;
+			this.lastFPSTime = nt;
+			this.frameCount = 0;
+			this.calcFPSAccum = 0;
+			this.numChanged = 0;
+			this.numChangedTrue = 0;
+		  }
+		  
+		  this.frameCount++;
+	  }
+
+      var dt = this.frameDuration * this.speed
+      if (!this.fixedTimestep)
+        dt = this.currentRealElapsed * this.speed
+      this.realTime = realTime
+      if (time != null) {
+        this.time = time
+        if (timeDelta)
+          dt = timeDelta
+      } else {
+        this.time += dt
+      }
+      this.previousTarget = this.target
+      this.target = null
+      this.numPicks = 0;
+      
+      var will_draw = (!this.redrawOnlyWhenChanged || this.changed);
+      this.handleUpdate(this.time, dt);
+      
+      if(this.enableBox2D) {
+	    this.worldAABB.minVertex.Set(0, 0);
+	    this.worldAABB.maxVertex.Set(this.width, this.height);
+	    
+	    this.world.Step(dt / 1000, 10);
+	  }
+      
+      
+      if(0) 1;
+      
+     
+     else if (!this.redrawOnlyWhenChanged || this.changed) {
+        //try {
+          //if (this.catchMouse) this.handlePick(ctx);
+          ctx.beginPath();
           this.handleDraw(ctx)
-        } catch(e) {
-          console.log(e)
-          throw(e)
-        }
-        this.changed = false
+        //} catch(e) {
+        //  console.log(e)
+          //throw(e)
+        //}
+      } 
+      
+      this.clearMouseEvents()
+
+      
+            
+      //this.changed = false
+      if(will_draw) {
+	      this.currentElapsed = (new Date().getTime() - this.realTime)
+	      this.elapsed += this.currentElapsed;
+	      this.calcFPSAccum += this.currentElapsed;
+	      this.currentFps = 1000 / this.currentElapsed
+	      this.frame++
+	      if (this.frame % this.fpsFrames == 0) {
+	        this.fps = this.fpsFrames*1000 / (this.elapsed)
+	        this.realFps = this.fpsFrames*1000 / (new Date().getTime() - this.startTime)
+	        this.elapsed = 0
+	        this.startTime = new Date().getTime()
+	      }
+          
       }
-      this.currentElapsed = (new Date().getTime() - this.realTime)
-      this.elapsed += this.currentElapsed
-      this.currentFps = 1000 / this.currentElapsed
-      this.frame++
-      if (this.frame % this.fpsFrames == 0) {
-        this.fps = this.fpsFrames*1000 / (this.elapsed)
-        this.realFps = this.fpsFrames*1000 / (new Date().getTime() - this.startTime)
-        this.elapsed = 0
-        this.startTime = new Date().getTime()
-      }
-    } catch(e) {
-      if (ctx) {
+
+    } finally {//catch(e) {
+      /*if (ctx) {
         // screwed up, context is borked
         try {
           // FIXME don't be stupid
@@ -4034,16 +5437,16 @@ Canvas = Klass(CanvasNode, {
             ctx.restore()
         } catch(er) {}
       }
-      delete this.context
-      throw(e)
+      delete this.context*/
+      //throw(e)
     }
   },
 
   /**
-    Returns the canvas drawing context object.
-
-    @return Canvas drawing context
-    */
+     * Returns the canvas drawing context object.
+     * 
+     * @return {CanvasRenderingContext2D} Canvas drawing context
+     */
   getContext : function() {
     if (this.recording)
       return this.getRecordingContext()
@@ -4054,12 +5457,12 @@ Canvas = Klass(CanvasNode, {
   },
 
   /**
-    Gets and returns an augmented canvas 2D drawing context.
-
-    The canvas 2D context is augmented by setter functions for all
-    its instance variables, making it easier to record canvas operations in
-    a cross-browser fashion.
-    */
+     * Gets and returns an augmented canvas 2D drawing context.
+     * 
+     * The canvas 2D context is augmented by setter functions for all its
+     * instance variables, making it easier to record canvas operations in a
+     * cross-browser fashion.
+     */
   get2DContext : function() {
     if (!this.context) {
       var ctx = CanvasSupport.getContext(this.canvas, '2d')
@@ -4069,10 +5472,10 @@ Canvas = Klass(CanvasNode, {
   },
 
   /**
-    Creates and returns a mock drawing context.
-
-    @return Mock drawing context
-    */
+     * Creates and returns a mock drawing context.
+     * 
+     * @return Mock drawing context
+     */
   getMockContext : function() {
     if (!this.fakeContext) {
       var ctx = this.get2DContext()
@@ -4097,10 +5500,11 @@ Canvas = Klass(CanvasNode, {
   },
 
   /**
-    Canvas drawPickingPath uses the canvas rectangle as its path.
-
-    @param ctx Canvas drawing context
-    */
+     * Canvas drawPickingPath uses the canvas rectangle as its path.
+     * 
+     * @param ctx
+     *            Canvas drawing context
+     */
   drawPickingPath : function(ctx) {
     ctx.rect(0,0, this.canvas.width, this.canvas.height)
   },
@@ -4109,13 +5513,15 @@ Canvas = Klass(CanvasNode, {
     return ((x >= 0) && (x <= this.canvas.width) && (y >= 0) && (y <= this.canvas.height))
   },
 
-  /**
-    Sets globalAlpha to this.opacity and clears the canvas if #clear is set to
-    true. If #fill is also set to true, fills the canvas rectangle instead of
-    clearing (using #fillStyle as the color.)
 
-    @param ctx Canvas drawing context
-    */
+  /**
+     * Sets globalAlpha to this.opacity and clears the canvas if #clear is set
+     * to true. If #fill is also set to true, fills the canvas rectangle instead
+     * of clearing (using #fillStyle as the color.)
+     * 
+     * @param ctx
+     *            Canvas drawing context
+     */
   draw : function(ctx) {
     ctx.setGlobalAlpha( this.opacity )
     if (this.clear) {
@@ -4133,25 +5539,32 @@ Canvas = Klass(CanvasNode, {
     ctx.fillOn = false
     ctx.strokeOn = false
   }
-})
+};
+
+//Canvas = Klass(CanvasNode, Canvas);
+Profiler.wrap_class(Canvas, "Canvas");
+Canvas.Extenze(CanvasNode);
 
 
 /**
-  Hacky link class for emulating <a>.
-
-  The correct way would be to have a real <a> under the cursor while hovering
-  this, or an imagemap polygon built from the clipped subtree path.
-
-  @param href Link href.
-  @param target Link target, defaults to _self.
-  @param config Optional config hash.
-  */
+ * Hacky link class for emulating <a>.
+ * 
+ * The correct way would be to have a real <a> under the cursor while hovering
+ * this, or an imagemap polygon built from the clipped subtree path.
+ * 
+ * @param href
+ *            Link href.
+ * @param target
+ *            Link target, defaults to _self.
+ * @param config
+ *            Object of properties to be set on initialization.
+ */
 LinkNode = Klass(CanvasNode, {
   href : null,
   target : '_self',
   cursor : 'pointer',
 
-  initialize : function(href, target, config) {
+  /** @override */ initialize : function(href, target, config) {
     this.href = href
     if (target)
       this.target = target
@@ -4172,10 +5585,28 @@ LinkNode = Klass(CanvasNode, {
 
 
 /**
-  AudioNode is a CanvasNode used to play a sound.
-
-  */
-AudioNode = Klass(CanvasNode, {
+ * AudioNode is a CanvasNode used to play a sound.
+ * 
+ * @constructor
+ * @extends CanvasNode
+ * 
+ * @params {String} filename URL of the sound file
+ * @params {Object} config Optional config object.
+ * 
+ * @property {boolean} ready Whether the node is ready
+ * @property {boolean} autoPlay Whether the node should start automatically.
+ * @property {boolean} playing Whether the node is playing.
+ * @property {boolean} paused Set whether the node is paused.
+ * @property {Number} pan Set pan
+ * @property {Number} volume Set volume
+ * @property {boolean} loop Set whether the clip loops
+ * @property {boolean} transformSound Use the screen position to set the pan.
+ */
+//AudioNode = Klass(CanvasNode, {
+function AudioNode(filename, config) {
+    AudioNode.prototype.initialize.apply(this, arguments);
+}
+AudioNode.prototype = {
   ready : false,
   autoPlay : false,
   playing : false,
@@ -4186,8 +5617,8 @@ AudioNode = Klass(CanvasNode, {
 
   transformSound : false,
 
-  initialize : function(filename, params) {
-    CanvasNode.initialize.call(this, params)
+  /** @override */ initialize : function(filename, params) {
+    CanvasNode.prototype.initialize.call(this, params)
     this.filename = filename
     this.when('load', this._autoPlaySound)
     this.loadSound()
@@ -4247,6 +5678,7 @@ AudioNode = Klass(CanvasNode, {
   handleUpdate : function() {
     CanvasNode.handleUpdate.apply(this, arguments)
     if (this.willBeDrawn) {
+    	//CRIO
       this.transform(null, true)
       if (!this.sound) this.loadSound()
       if (this.ready) {
@@ -4307,39 +5739,41 @@ AudioNode = Klass(CanvasNode, {
     this.sound.pause()
     this.root.dispatchEvent({type: this.paused ? 'pause' : 'play', canvasTarget: this})
   }
-})
+};
+AudioNode.Extenze(CanvasNode);
 
 
 /**
-  ElementNode is a CanvasNode that has an HTML element as its content.
-
-  The content is added to an absolutely positioned HTML element, which is added
-  to the root node's canvases parentNode. The content element follows the
-  current transformation matrix.
-
-  The opacity of the element is set to the globalAlpha of the drawing context
-  unless #noAlpha is true.
-
-  The font-size of the element is set to the current y-scale unless #noScaling
-  is true.
-
-  Use ElementNode when you need accessible web content in your animations.
-
-    var e = new ElementNode(
-      E('h1', 'HERZLICH WILLKOMMEN IM BAHNHOF'),
-      {
-        x : 40,
-        y : 30
-      }
-    )
-    e.addFrameListener(function(t) {
-      this.scale = 1 + 0.5*Math.cos(t/1000)
-    })
-
-  @param content An HTML element or string of HTML to use as the content.
-  @param config Optional config has.
-  */
-ElementNode = Klass(CanvasNode, {
+ * ElementNode is a CanvasNode that has an HTML element as its content.
+ * 
+ * The content is added to an absolutely positioned HTML element, which is added
+ * to the root node's canvases parentNode. The content element follows the
+ * current transformation matrix.
+ * 
+ * The opacity of the element is set to the globalAlpha of the drawing context
+ * unless #noAlpha is true.
+ * 
+ * The font-size of the element is set to the current y-scale unless #noScaling
+ * is true.
+ * 
+ * Use ElementNode when you need accessible web content in your animations.
+ * 
+ * var e = new ElementNode( E('h1', 'HERZLICH WILLKOMMEN IM BAHNHOF'), { x : 40,
+ * y : 30 } ) e.addFrameListener(function(t) { this.scale = 1 +
+ * 0.5*Math.cos(t/1000) })
+ * 
+ * @constructor
+ * @extends CanvasNode
+ * @param content
+ *            An HTML element or string of HTML to use as the content.
+ * @param config
+ *            Object of properties to be set on initialization.
+ */
+//ElementNode = Klass(CanvasNode, {
+function ElementNode() {
+    ElementNode.prototype.initialize.apply(this, arguments);	
+}
+ElementNode.prototype = {
   noScaling : false,
   noAlpha : false,
   inherit : 'inherit',
@@ -4347,14 +5781,39 @@ ElementNode = Klass(CanvasNode, {
   valign: null, // top | center | bottom
   xOffset: 0,
   yOffset: 0,
+  drawable: true,
 
-  initialize : function(content, config) {
-    CanvasNode.initialize.call(this, config)
+  /** @override */ initialize : function(content, config) {
+    CanvasNode.prototype.initialize.call(this, config)
     this.content = content
     this.element = E('div', content)
-    this.element.style.MozTransformOrigin =
-    this.element.style.webkitTransformOrigin = '0 0'
-    this.element.style.position = 'absolute'
+		if( Canvas.useDOM == null || Canvas.useDOM == false ) {
+			//if(window.$) $("*", this.element).addClass("ElementNode");
+			this.element.className += 'ElementNode';
+		}
+    this.element.style.MozTransformOrigin = '0 0 '
+    this.element.style.WebkitTransformOrigin = '0 0'
+    this.element.style.position = 'absolute';
+    
+    CanvasNode.prototype.addEventListener.call(this, 'rootChanged', function(e) {
+        if(this.root.isFake || !e.removeRoot) return;
+        
+        if (this.element && this.element.parentNode && this.element.parentNode.removeChild)
+            this.element.parentNode.removeChild(this.element)
+    });
+    
+    this.addFrameListener(function() {
+    	if(this.DOMelement) return;
+    	
+	    if (!this.willBeDrawn || !this.visible || this.display == 'none' || this.visibility == 'hidden' || !this.drawable) {
+	      if (this.element.style.display != 'none')
+	        this.element.style.display = 'none'
+	    } else if (this.element.style.display == 'none') {
+	      this.element.style.display = 'block'
+	    }
+    });
+    
+    //setTimeout((function() {console.log(this)}).bind(this), 20000);
   },
 
   clone : function() {
@@ -4362,32 +5821,23 @@ ElementNode = Klass(CanvasNode, {
     if (this.content && this.content.cloneNode)
       c.content = this.content.cloneNode(true)
     c.element = E('div', c.content)
+		if( Canvas.useDOM == null || Canvas.useDOM == false ) {
+			//if(window.$) $("*", this.element).addClass("ElementNode");
+			this.element.className += 'ElementNode';
+		}
     c.element.style.position = 'absolute'
     c.element.style.MozTransformOrigin =
-    c.element.style.webkitTransformOrigin = '0 0'
+    c.element.style.WebkitTransformOrigin = '0 0'
     return c
-  },
-
-  setRoot : function(root) {
-    CanvasNode.setRoot.call(this, root)
-    if (this.element && this.element.parentNode && this.element.parentNode.removeChild)
-      this.element.parentNode.removeChild(this.element)
-  },
-
-  handleUpdate : function(t, dt) {
-    CanvasNode.handleUpdate.call(this, t, dt)
-    if (!this.willBeDrawn || !this.visible || this.display == 'none' || this.visibility == 'hidden' || !this.drawable) {
-      if (this.element.style.display != 'none')
-        this.element.style.display = 'none'
-    } else if (this.element.style.display == 'none') {
-      this.element.style.display = 'block'
-    }
   },
 
   addEventListener : function(event, callback, capture) {
     var th = this
     var ccallback = function() { callback.apply(th, arguments) }
-    return this.element.addEventListener(event, ccallback, capture||false)
+    if (this.DOMelement)
+        return this.DOMelement.addEventListener(event, ccallback, capture||false)
+    else if(this.element)
+        return this.element.addEventListener(event, ccallback, capture||false)
   },
 
   removeEventListener : function(event, callback, capture) {
@@ -4396,17 +5846,31 @@ ElementNode = Klass(CanvasNode, {
     return this.element.removeEventListener(event, ccallback, capture||false)
   },
 
+  
+
   draw : function(ctx) {
+  	if (!this.willBeDrawn || !this.visible || this.display == 'none' || this.visibility == 'hidden') {
+          if (this.element.style.display != 'none')
+            this.element.style.display = 'none'
+        } else if (this.element.style.display == 'none') {
+          this.element.style.display = 'block'
+        }
+        
     if (this.cursor && this.element.style.cursor != this.cursor)
       this.element.style.cursor = this.cursor
-    if (this.element.style.zIndex != this.root.elementNodeZIndexCounter)
+    if (this.element.style.zIndex != this.root.elementNodeZIndexCounter && !this.DOMelement)
       this.element.style.zIndex = this.root.elementNodeZIndexCounter
     this.root.elementNodeZIndexCounter++
     var baseTransform = this.currentMatrix
     xo = this.xOffset
     yo = this.yOffset
-    if (this.fillBoundingBox && this.parent && this.parent.getBoundingBox) {
+    /*if (this.fillBoundingBox && this.parent && this.parent.getBoundingBox) {
       var bb = this.parent.getBoundingBox()
+      xo += bb[0]
+      yo += bb[1]
+    }*/
+    if ((this.fillBoundingBox || this.DOMelement) && this.parent && this.parent.getSubtreeBoundingBox) {
+      var bb = this.parent.getSubtreeBoundingBox(true)
       xo += bb[0]
       yo += bb[1]
     }
@@ -4424,12 +5888,17 @@ ElementNode = Klass(CanvasNode, {
       this.element.style.fontFamily = ctx.fontFamily
 
     var wkt = CanvasSupport.isCSSTransformSupported()
-    if (wkt && !this.noScaling) {
-      this.element.style.MozTransform =
-      this.element.style.webkitTransform = 'matrix('+baseTransform.join(",")+')'
-    } else {
-      this.element.style.MozTransform =
-      this.element.style.webkitTransform = ''
+    if(!this.DOMelement) {
+        if (wkt && !this.noScaling) {
+          this.element.style.transform =
+          this.element.style.MozTransform =
+          this.element.style.WebkitTransform = 'matrix('+baseTransform.join(",")+')';
+          //alert('matrix('+baseTransform.join(",")+')')
+        } else {
+          this.element.style.transform =
+          this.element.style.MozTransform =
+          this.element.style.WebkitTransform = '';
+        }
     }
     if (ctx.fontSize != null) {
       if (this.noScaling || wkt) {
@@ -4448,7 +5917,7 @@ ElementNode = Klass(CanvasNode, {
       this.element.style.opacity = 1
     else
       this.element.style.opacity = ctx.globalAlpha
-    if (!this.element.parentNode && this.root.canvas.parentNode) {
+    if (!this.element.parentNode && this.root.canvas.parentNode && !this.DOMelement) {
       this.element.style.visibility = 'hidden'
       this.root.canvas.parentNode.appendChild(this.element)
       var hidden = true
@@ -4499,7 +5968,7 @@ ElementNode = Klass(CanvasNode, {
         dy = -this.element.offsetHeight
         origin[1] = '100%'
       }
-      this.element.style.webkitTransformOrigin =
+      this.element.style.WebkitTransformOrigin =
       this.element.style.MozTransformOrigin = origin.join(" ")
       this.eWidth = this.element.offsetWidth / xs
       this.eHeight = this.element.offsetHeight / ys
@@ -4514,34 +5983,45 @@ ElementNode = Klass(CanvasNode, {
     if (hidden)
       this.element.style.visibility = 'visible'
   }
-})
+};
+Profiler.wrap_class(ElementNode, "ElementNode");
+ElementNode.Extenze(CanvasNode);
 
 
 /**
-  A Drawable is a CanvasNode with possible fill, stroke and clip.
+ * A Drawable is a CanvasNode with possible fill, stroke and clip.
+ * 
+ * It draws the path by calling #drawGeometry
+ * 
+ * @constructor
+ * @extends CanvasNode
+ */
+function Drawable() {
+     Drawable.prototype.initialize.apply(this, arguments)
+}
 
-  It draws the path by calling #drawGeometry
-  */
-Drawable = Klass(CanvasNode, {
+Drawable.prototype = { 
   pickable : true,
-  //   'inside' // clip before drawing the stroke
-  // | 'above'  // draw stroke after the fill
-  // | 'below'  // draw stroke before the fill
+  
+  // 'inside' // clip before drawing the stroke
+  // | 'above' // draw stroke after the fill
+  // | 'below' // draw stroke before the fill
   strokeMode : 'above',
 
   ABOVE : 'above', BELOW : 'below', INSIDE : 'inside',
 
-  initialize : function(config) {
-    CanvasNode.initialize.call(this, config)
+  /** @override */ initialize : function(config) {
+    CanvasNode.prototype.initialize.call(this, config)
   },
 
   /**
-    Draws the picking path for the Drawable.
-
-    The default version begins a new path and calls drawGeometry.
-
-    @param ctx Canvas drawing context
-    */
+     * Draws the picking path for the Drawable.
+     * 
+     * The default version begins a new path and calls drawGeometry.
+     * 
+     * @param ctx
+     *            Canvas drawing context
+     */
   drawPickingPath : function(ctx) {
     if (!this.drawGeometry) return
     ctx.beginPath()
@@ -4549,17 +6029,19 @@ Drawable = Klass(CanvasNode, {
   },
 
   /**
-    Returns true if the point x,y is inside the path of a drawable node.
-
-    The x,y point is in user-space coordinates, meaning that e.g. the point
-    5,5 will always be inside the rectangle [0, 0, 10, 10], regardless of the
-    transform on the rectangle.
-
-    @param x X-coordinate of the point.
-    @param y Y-coordinate of the point.
-    @return Whether the point is inside the path of this node.
-    @type boolean
-    */
+     * Returns true if the point x,y is inside the path of a drawable node.
+     * 
+     * The x,y point is in user-space coordinates, meaning that e.g. the point
+     * 5,5 will always be inside the rectangle [0, 0, 10, 10], regardless of the
+     * transform on the rectangle.
+     * 
+     * @param x
+     *            X-coordinate of the point.
+     * @param y
+     *            Y-coordinate of the point.
+     * @return Whether the point is inside the path of this node.
+     * @type boolean
+     */
   isPointInPath : function(x, y) {
     return false
   },
@@ -4571,14 +6053,14 @@ Drawable = Klass(CanvasNode, {
     var w = this.root.width
     var h = this.root.height
     if (this.root.drawBoundingBoxes) {
-      ctx.save()
+      /*ctx.save()
         var bbox = this.getBoundingBox()
         ctx.beginPath()
         ctx.rect(bbox[0], bbox[1], bbox[2], bbox[3])
         ctx.strokeStyle = 'green'
         ctx.lineWidth = 1
         ctx.stroke()
-      ctx.restore()
+      ctx.restore()*/
       ctx.save()
         CanvasSupport.setTransform(ctx, [1,0,0,1,0,0], this.currentMatrix)
         ctx.beginPath()
@@ -4602,21 +6084,26 @@ Drawable = Klass(CanvasNode, {
   },
 
   /**
-    Draws the Drawable. Begins a path and calls this.drawGeometry, followed by
-    possibly filling, stroking and clipping the path, depending on whether
-    #fill, #stroke and #clip are set.
-
-    @param ctx Canvas drawing context
-    */
+     * Draws the Drawable. Begins a path and calls this.drawGeometry, followed
+     * by possibly filling, stroking and clipping the path, depending on whether
+     * #fill, #stroke and #clip are set.
+     * 
+     * @param ctx
+     *            Canvas drawing context
+     */
   draw : function(ctx) {
     if (!this.drawGeometry) return
     // bbox checking is slower than just drawing in most cases.
     // and caching the bboxes is hard to do correctly.
     // plus, bboxes aren't hierarchical.
     // so we are being glib :|
-    if (this.root.drawBoundingBoxes)
-      this.isVisible(ctx)
-    var ft = (ctx.fillStyle.transformList ||
+    
+    ctx.beginPath()
+    this.drawGeometry(ctx)
+    if(!this.fill && !this.stroke) return;
+    
+    var ft = false, st = false;
+    /*var ft = (ctx.fillStyle.transformList ||
               ctx.fillStyle.matrix ||
               ctx.fillStyle.scale != null ||
               ctx.fillStyle.rotation ||
@@ -4627,9 +6114,8 @@ Drawable = Klass(CanvasNode, {
               ctx.strokeStyle.scale != null ||
               ctx.strokeStyle.rotation ||
               ctx.strokeStyle.x ||
-              ctx.strokeStyle.y )
-    ctx.beginPath()
-    this.drawGeometry(ctx)
+              ctx.strokeStyle.y )*/
+    
     if (ctx.strokeOn) {
       switch (this.strokeMode) {
         case this.ABOVE:
@@ -4655,7 +6141,7 @@ Drawable = Klass(CanvasNode, {
     } else if (ctx.fillOn) {
       this.doFill(ctx,ft)
     }
-    this.drawMarkers(ctx)
+    //this.drawMarkers(ctx)
     if (this.clip) ctx.clip()
   },
 
@@ -4786,26 +6272,38 @@ Drawable = Klass(CanvasNode, {
   getMidPoints : false,
   getBoundingBox : false
 
-})
-
+};
+Profiler.wrap_class(Drawable, "Drawable");
+Drawable.Extenze(CanvasNode);
 
 /**
-  A Line is a line drawn from x1,y1 to x2,y2. Lines are stroked by default.
-
-  @param x1 X-coordinate of the line's first point.
-  @param y1 Y-coordinate of the line's first point.
-  @param x2 X-coordinate of the line's second point.
-  @param y2 Y-coordinate of the line's second point.
-  @param config Optional config hash.
-  */
-Line = Klass(Drawable, {
+ * A Line is a line drawn from x1,y1 to x2,y2. Lines are stroked by default.
+ * 
+ * @constructor
+ * @extends Drawable
+ * @param x1
+ *            X-coordinate of the line's first point.
+ * @param y1
+ *            Y-coordinate of the line's first point.
+ * @param x2
+ *            X-coordinate of the line's second point.
+ * @param y2
+ *            Y-coordinate of the line's second point.
+ * @param config
+ *            Object of properties to be set on initialization.
+ */
+//Line = Klass(Drawable, {
+function Line() {
+    Line.prototype.initialize.apply(this, arguments);	
+}
+Line.prototype = {
   x1 : 0,
   y1 : 0,
   x2 : 0,
   y2 : 0,
   stroke : true,
 
-  initialize : function(x1,y1, x2,y2, config) {
+  /** @override */ initialize : function(x1,y1, x2,y2, config) {
     this.x1 = x1
     this.y1 = y1
     this.x2 = x2
@@ -4840,22 +6338,30 @@ Line = Klass(Drawable, {
     return Curves.lineLength([this.x1, this.y1], [this.x2, this.y2])
   }
 
-})
+};
+Line.Extenze(Drawable);
 
 
 
 /**
-  Circle is used for creating circular paths.
-
-  Uses context.arc(...).
-
-  Attributes:
-    cx, cy, radius, startAngle, endAngle, clockwise, closePath, includeCenter
-
-  @param radius Radius of the circle.
-  @param config Optional config hash.
-  */
-Circle = Klass(Drawable, {
+ * Circle is used for creating circular paths.
+ * 
+ * Uses context.arc(...).
+ * 
+ * Attributes: cx, cy, radius, startAngle, endAngle, clockwise, closePath,
+ * includeCenter
+ * 
+ * @constructor
+ * @extends Drawable
+ * @param radius
+ *            Radius of the circle.
+ * @param config
+ *            Object of properties to be set on initialization.
+ */
+//Circle = Klass(Drawable, {
+function Circle() {
+}
+Circle.prototype = {
   cx : 0,
   cy : 0,
   radius : 10,
@@ -4865,16 +6371,17 @@ Circle = Klass(Drawable, {
   closePath : true,
   includeCenter : false,
 
-  initialize : function(radius, config) {
+  /** @override */ initialize : function(radius, config) {
     if (radius != null) this.radius = radius
     Drawable.initialize.call(this, config)
   },
-
+  
   /**
-    Creates a circular path using ctx.arc(...).
-
-    @param ctx Canvas drawing context.
-    */
+     * Creates a circular path using ctx.arc(...).
+     * 
+     * @param ctx
+     *            Canvas drawing context.
+     */
   drawGeometry : function(ctx) {
     if (this.radius == 0) return
     if (this.includeCenter)
@@ -4888,19 +6395,21 @@ Circle = Klass(Drawable, {
       ctx.closePath()
     }
   },
-
+  
   /**
-    Returns true if the point x,y is inside the radius of the circle.
-
-    The x,y point is in user-space coordinates, meaning that e.g. the point
-    5,0 will always be inside a circle with radius of 10 and center at origin,
-    regardless of the transform on the circle.
-
-    @param x X-coordinate of the point.
-    @param y Y-coordinate of the point.
-    @return Whether the point is inside the radius of this circle.
-    @type boolean
-    */
+     * Returns true if the point x,y is inside the radius of the circle.
+     * 
+     * The x,y point is in user-space coordinates, meaning that e.g. the point
+     * 5,0 will always be inside a circle with radius of 10 and center at
+     * origin, regardless of the transform on the circle.
+     * 
+     * @param x
+     *            X-coordinate of the point.
+     * @param y
+     *            Y-coordinate of the point.
+     * @return Whether the point is inside the radius of this circle.
+     * @type boolean
+     */
   isPointInPath : function(x,y) {
     x -= this.cx
     y -= this.cy
@@ -4911,18 +6420,27 @@ Circle = Klass(Drawable, {
     return [this.cx-this.radius, this.cy-this.radius,
             2*this.radius, 2*this.radius]
   }
-})
+};
+Circle.Extenze(Drawable);
 
 
 /**
-  Ellipse is a scaled circle. Except it isn't. Because that wouldn't work in
-  Opera.
-  */
-Ellipse = Klass(Circle, {
+ * Ellipse is a scaled circle. Except it isn't. Because that wouldn't work in
+ * Opera.
+ * 
+ * @constructor
+ * @extends Drawable
+ * @param config Object of properties to be set on initialization.
+ */
+//Ellipse = Klass(Circle, {
+function Ellipse(config) {
+	Ellipse.prototype.initialize.apply(this, arguments)
+}
+Ellipse.prototype = {
   radiusX : 0,
   radiusY : 0,
 
-  initialize : function(radiusX, radiusY, config) {
+  /** @override */ initialize : function(radiusX, radiusY, config) {
     this.radiusX = radiusX
     this.radiusY = radiusY
     Circle.initialize.call(this, 1, config)
@@ -4955,13 +6473,14 @@ Ellipse = Klass(Circle, {
     return [this.cx-this.radiusX, this.cy-this.radiusY,
             this.radiusX*2, this.radiusY*2]
   }
-})
+};
+Ellipse.Extenze(Drawable);
 
 
 /**
-  A Spiral is a function graph drawn in polar coordinates from startAngle to
-  endAngle. And the source of all life energy, etc.
-  */
+ * A Spiral is a function graph drawn in polar coordinates from startAngle to
+ * endAngle. And the source of all life energy, etc.
+ */
 Spiral = Klass(Drawable, {
   cx : 0,
   cy : 0,
@@ -4973,7 +6492,7 @@ Spiral = Klass(Drawable, {
     return a
   },
 
-  initialize : function(endAngle, config) {
+  /** @override */ initialize : function(endAngle, config) {
     this.endAngle = endAngle
     Drawable.initialize.call(this, config)
   },
@@ -5011,23 +6530,36 @@ Spiral = Klass(Drawable, {
   }
 })
 
+Canvas.prototype.checkProgram = function(prog) {
+	if(this.gl.currentProgram = prog) return;
+	
+	
+};
 
 /**
-  Rectangle is used for creating rectangular paths.
-
-  Uses context.rect(...).
-
-  Attributes:
-    cx, cy, width, height, centered, rx, ry
-
-  If centered is set to true, centers the rectangle on the origin.
-  Otherwise the top-left corner of the rectangle is on the origin.
-
-  @param width Width of the rectangle.
-  @param height Height of the rectangle.
-  @param config Optional config hash.
-  */
-Rectangle = Klass(Drawable, {
+ * Rectangle is used for creating rectangular paths.
+ * 
+ * Uses context.rect(...).
+ * 
+ * Attributes: cx, cy, width, height, centered, rx, ry
+ * 
+ * If centered is set to true, centers the rectangle on the origin. Otherwise
+ * the top-left corner of the rectangle is on the origin.
+ * 
+ * @constructor
+ * @extends Drawable
+ * @param width
+ *            Width of the rectangle.
+ * @param height
+ *            Height of the rectangle.
+ * @param config
+ *            Object of properties to be set on initialization.
+ */
+//Rectangle = Klass(Drawable, {
+function Rectangle() {
+     Rectangle.prototype.initialize.apply(this, arguments)
+}
+Rectangle.prototype = {
   cx : 0,
   cy : 0,
   x2 : 0,
@@ -5038,20 +6570,26 @@ Rectangle = Klass(Drawable, {
   ry : 0,
   centered : false,
 
-  initialize : function(width, height, config) {
+  /** @override */ initialize : function(width, height, config) {
     if (width != null) {
       this.width = width
       this.height = width
     }
     if (height != null) this.height = height
     Drawable.initialize.call(this, config)
+    
+    if(this.DOMelement)
+        this.DOMelement.style.backgroundColor = '#000000';
   },
+  
+  
 
   /**
-    Creates a rectangular path using ctx.rect(...).
-
-    @param ctx Canvas drawing context.
-    */
+     * Creates a rectangular path using ctx.rect(...).
+     * 
+     * @param ctx
+     *            Canvas drawing context.
+     */
   drawGeometry : function(ctx) {
     var x = this.cx
     var y = this.cy
@@ -5088,17 +6626,19 @@ Rectangle = Klass(Drawable, {
   },
 
   /**
-    Returns true if the point x,y is inside this rectangle.
-
-    The x,y point is in user-space coordinates, meaning that e.g. the point
-    5,5 will always be inside the rectangle [0, 0, 10, 10], regardless of the
-    transform on the rectangle.
-
-    @param x X-coordinate of the point.
-    @param y Y-coordinate of the point.
-    @return Whether the point is inside this rectangle.
-    @type boolean
-    */
+     * Returns true if the point x,y is inside this rectangle.
+     * 
+     * The x,y point is in user-space coordinates, meaning that e.g. the point
+     * 5,5 will always be inside the rectangle [0, 0, 10, 10], regardless of the
+     * transform on the rectangle.
+     * 
+     * @param x
+     *            X-coordinate of the point.
+     * @param y
+     *            Y-coordinate of the point.
+     * @return Whether the point is inside this rectangle.
+     * @type boolean
+     */
   isPointInPath : function(x,y) {
     x -= this.cx
     y -= this.cy
@@ -5118,26 +6658,28 @@ Rectangle = Klass(Drawable, {
     }
     return [x,y,this.width,this.height]
   }
-})
+};
 
+Rectangle.Extenze(Drawable);
 
 /**
-  Polygon is used for creating paths consisting of straight line
-  segments.
-
-  Attributes:
-    segments - The vertices of the polygon, e.g. [0,0, 1,1, 1,2, 0,1]
-    closePath - Whether to close the path, default is true.
-
-  @param segments The vertices of the polygon.
-  @param closePath Whether to close the path.
-  @param config Optional config hash.
-  */
+ * Polygon is used for creating paths consisting of straight line segments.
+ * 
+ * Attributes: segments - The vertices of the polygon, e.g. [0,0, 1,1, 1,2, 0,1]
+ * closePath - Whether to close the path, default is true.
+ * 
+ * @param segments
+ *            The vertices of the polygon.
+ * @param closePath
+ *            Whether to close the path.
+ * @param config
+ *            Optional config hash.
+ */
 Polygon = Klass(Drawable, {
   segments : [],
   closePath : true,
 
-  initialize : function(segments, config) {
+  /** @override */ initialize : function(segments, config) {
     this.segments = segments
     Drawable.initialize.call(this, config)
   },
@@ -5216,18 +6758,20 @@ Polygon = Klass(Drawable, {
 
 
 /**
-  CatmullRomSpline draws a Catmull-Rom spline, with optional looping and
-  path closing. Handy for motion paths.
-
-  @param segments Control points for the spline, as [[x,y], [x,y], ...]
-  @param config Optional config hash.
-  */
+ * CatmullRomSpline draws a Catmull-Rom spline, with optional looping and path
+ * closing. Handy for motion paths.
+ * 
+ * @param segments
+ *            Control points for the spline, as [[x,y], [x,y], ...]
+ * @param config
+ *            Optional config hash.
+ */
 CatmullRomSpline = Klass(Drawable, {
   segments : [],
   loop : false,
   closePath : false,
 
-  initialize : function(segments, config) {
+  /** @override */ initialize : function(segments, config) {
     this.segments = segments
     Drawable.initialize.call(this, config)
   },
@@ -5354,64 +6898,63 @@ CatmullRomSpline = Klass(Drawable, {
 
 
 /**
-  Path is used for creating custom paths.
-
-  Attributes: segments, closePath.
-
-    var path = new Path([
-      ['moveTo', [-50, -60]],
-      ['lineTo', [30, 50],
-      ['lineTo', [-50, 50]],
-      ['bezierCurveTo', [-50, 100, -50, 100, 0, 100]],
-      ['quadraticCurveTo', [0, 120, -20, 130]],
-      ['quadraticCurveTo', [0, 140, 0, 160]],
-      ['bezierCurveTo', [-10, 160, -20, 170, -30, 180]],
-      ['quadraticCurveTo', [10, 230, -50, 260]]
-    ])
-
-  The path segments are used as [methodName, arguments] on the canvas
-  drawing context, so the possible path segments are:
-
-    ['moveTo', [x, y]]
-    ['lineTo', [x, y]]
-    ['quadraticCurveTo', [control_point_x, control_point_y, x, y]]
-    ['bezierCurveTo', [cp1x, cp1y, cp2x, cp2y, x, y]]
-    ['arc', [x, y, radius, startAngle, endAngle, drawClockwise]]
-    ['arcTo', [x1, y1, x2, y2, radius]]
-    ['rect', [x, y, width, height]]
-
-  You can also pass an SVG path string as segments.
-
-    var path = new Path("M 100 100 L 300 100 L 200 300 z", {
-      stroke: true, strokeStyle: 'blue',
-      fill: true, fillStyle: 'red',
-      lineWidth: 3
-    })
-
-  @param segments The path segments.
-  @param config Optional config hash.
-  */
-Path = Klass(Drawable, {
+ * Path is used for creating custom paths.
+ * 
+ * Attributes: segments, closePath.
+ * 
+ * var path = new Path([ ['moveTo', [-50, -60]], ['lineTo', [30, 50], ['lineTo',
+ * [-50, 50]], ['bezierCurveTo', [-50, 100, -50, 100, 0, 100]],
+ * ['quadraticCurveTo', [0, 120, -20, 130]], ['quadraticCurveTo', [0, 140, 0,
+ * 160]], ['bezierCurveTo', [-10, 160, -20, 170, -30, 180]],
+ * ['quadraticCurveTo', [10, 230, -50, 260]] ])
+ * 
+ * The path segments are used as [methodName, arguments] on the canvas drawing
+ * context, so the possible path segments are:
+ * 
+ * ['moveTo', [x, y]] ['lineTo', [x, y]] ['quadraticCurveTo', [control_point_x,
+ * control_point_y, x, y]] ['bezierCurveTo', [cp1x, cp1y, cp2x, cp2y, x, y]]
+ * ['arc', [x, y, radius, startAngle, endAngle, drawClockwise]] ['arcTo', [x1,
+ * y1, x2, y2, radius]] ['rect', [x, y, width, height]]
+ * 
+ * You can also pass an SVG path string as segments.
+ * 
+ * var path = new Path("M 100 100 L 300 100 L 200 300 z", { stroke: true,
+ * strokeStyle: 'blue', fill: true, fillStyle: 'red', lineWidth: 3 })
+ * 
+ * @constructor
+ * @extends Drawable
+ * @param segments
+ *            The path segments.
+ * @param config
+ *            Object of properties to be set on initialization.
+ */
+//Path = Klass(Drawable, {
+function Path() {
+    Path.prototype.initialize.apply(this, arguments);
+}
+Path.prototype = {
   segments : [],
   closePath : false,
 
-  initialize : function(segments, config) {
+  /** @override */ initialize : function(segments, config) {
     this.segments = segments
     Drawable.initialize.call(this, config)
   },
 
   /**
-    Creates a path on the given drawing context.
-
-    For each path segment, calls the context method named in the first element
-    of the segment with the rest of the segment elements as arguments.
-
-    SVG paths are parsed and executed.
-
-    Closes the path if closePath is true.
-
-    @param ctx Canvas drawing context.
-    */
+     * Creates a path on the given drawing context.
+     * 
+     * For each path segment, calls the context method named in the first
+     * element of the segment with the rest of the segment elements as
+     * arguments.
+     * 
+     * SVG paths are parsed and executed.
+     * 
+     * Closes the path if closePath is true.
+     * 
+     * @param ctx
+     *            Canvas drawing context.
+     */
   drawGeometry : function(ctx) {
     var segments = this.getSegments()
     for (var i=0; i<segments.length; i++) {
@@ -5423,17 +6966,19 @@ Path = Klass(Drawable, {
   },
 
   /**
-    Returns true if the point x,y is inside the path's bounding rectangle.
-
-    The x,y point is in user-space coordinates, meaning that e.g. the point
-    5,5 will always be inside the rectangle [0, 0, 10, 10], regardless of the
-    transform on the rectangle.
-
-    @param px X-coordinate of the point.
-    @param py Y-coordinate of the point.
-    @return Whether the point is inside the path's bounding rectangle.
-    @type boolean
-    */
+     * Returns true if the point x,y is inside the path's bounding rectangle.
+     * 
+     * The x,y point is in user-space coordinates, meaning that e.g. the point
+     * 5,5 will always be inside the rectangle [0, 0, 10, 10], regardless of the
+     * transform on the rectangle.
+     * 
+     * @param px
+     *            X-coordinate of the point.
+     * @param py
+     *            Y-coordinate of the point.
+     * @return Whether the point is inside the path's bounding rectangle.
+     * @type boolean
+     */
   isPointInPath : function(px,py) {
     var bbox = this.getBoundingBox()
     return (px >= bbox[0] && px <= bbox[0]+bbox[2] &&
@@ -5535,10 +7080,10 @@ Path = Klass(Drawable, {
   },
 
   /**
-    Compiles an SVG path string into an array of canvas context method calls.
-
-    Returns an array of [methodName, [arg1, arg2, ...]] method call arrays.
-    */
+     * Compiles an SVG path string into an array of canvas context method calls.
+     * 
+     * Returns an array of [methodName, [arg1, arg2, ...]] method call arrays.
+     */
   compileSVGPath : function(svgPath) {
     var segs = svgPath.split(/(?=[a-z])/i)
     var x = 0
@@ -5911,37 +7456,57 @@ Path = Klass(Drawable, {
     }
     return {point: [x, y], angle: angle }
   }
-
-})
-
+};
+Path.Extenze(Drawable);
 
 /**
-  ImageNode is used for drawing images. Creates a rectangular path around
-  the drawn image.
+ * ImageNode is used for drawing images. Creates a rectangular path around the
+ * drawn image.
+ * 
+ * Attributes:
+ * 
+ * centered - If true, image center is at the origin. Otherwise image top-left
+ * is at the origin. usePattern - Use a pattern fill for drawing the image
+ * (instead of drawImage.) Doesn't do sub-image drawing, and Safari doesn't like
+ * scaled image patterns. sX, sY, sWidth, sHeight - Area of image to draw.
+ * Optional. dX, dY - Coordinates where to draw the image. Default is 0, 0.
+ * dWidth, dHeight - Size of the drawn image. Optional.
+ * 
+ * Example:
+ * 
+ * var img = new Image() img.src = 'foo.jpg' var imageGeo = new ImageNode(img)
+ * 
+ * @constructor
+ * @extends Drawable
+ * @param {Image} image
+ *            Image to draw.
+ * @param config
+ *            Object of properties to be set on initialization.
+ * 
+ * @property {Number} sX Source image X Offset
+ * @property {Number} sY Source image Y Offset
+ * @property {Number} sWidth Source rectangle region width
+ * @property {Number} sHeight Source rectangle region height
+ * @property {Number} dX Destination X offset
+ * @property {Number} dY Destination Y offset
+ * @property {Number} dWidth Destination rectangle region width
+ * @property {Number} dHeight Destination rectangle region height
+ * @property {boolean} centered True to put [0,0] in the image center, 
+ *    or false for the upper left
+ * @property {Image} image The image object to draw
+ */
+//ImageNode = Klass(Drawable, {
+function ImageNode() {
+     ImageNode.prototype.initialize.apply(this, arguments)
+}
 
-  Attributes:
-
-    centered - If true, image center is at the origin.
-               Otherwise image top-left is at the origin.
-    usePattern - Use a pattern fill for drawing the image (instead of
-                 drawImage.) Doesn't do sub-image drawing, and Safari doesn't
-                 like scaled image patterns.
-    sX, sY, sWidth, sHeight - Area of image to draw. Optional.
-    dX, dY - Coordinates where to draw the image. Default is 0, 0.
-    dWidth, dHeight - Size of the drawn image. Optional.
-
-  Example:
-
-    var img = new Image()
-    img.src = 'foo.jpg'
-    var imageGeo = new ImageNode(img)
-
-  @param image Image to draw.
-  @param config Optional config hash.
-  */
-ImageNode = Klass(Drawable, {
+ImageNode.prototype = {
+  isRegion : false,
   centered : false,
   usePattern : false,
+  hdWidth: null,
+  hdHeight: null,
+  rimage: null,
 
   sX : 0,
   sY : 0,
@@ -5953,32 +7518,58 @@ ImageNode = Klass(Drawable, {
   dWidth : null,
   dHeight : null,
 
-  initialize : function(image, config) {
-    this.image = image
-    Drawable.initialize.call(this, config)
+  /** @override */ initialize : function(image, config) {
+    this.image = image;
+    Drawable.prototype.initialize.call(this, config)
+    
+    
   },
+  
+  
 
   /**
-    Draws the image on the given drawing context.
-
-    Creates a rectangular path around the drawn image (for possible stroke
-    and/or fill.)
-
-    @param ctx Canvas drawing context.
-    */
+     * Draws the image on the given drawing context.
+     * 
+     * Creates a rectangular path around the drawn image (for possible stroke
+     * and/or fill.)
+     * 
+     * @private
+     * @param ctx
+     *            Canvas drawing context.
+     */
   drawGeometry : function(ctx) {
-    if (Object.isImageLoaded(this.image)) {
-      var w = this.dWidth == null ? this.image.width : this.dWidth
-      var h = this.dHeight == null ? this.image.height : this.dHeight
-      var x = this.dX + (this.centered ? -w * 0.5 : 0)
-      var y = this.dY + (this.centered ? -h * 0.5 : 0)
-      if (this.dWidth != null) {
-        if (this.sWidth != null) {
-          ctx.drawImage(this.image,
+    if(this.imageIsLoaded || Object.isImageLoaded(this.image)) {
+    	this.imageIsLoaded = true;
+      if(this.rimage === null) this.rimage = this.image.real || this.image;
+      var cm = this.currentMatrix;
+      //var w = this.dWidth == null ? this.image.width : this.dWidth
+      //var h = this.dHeight == null ? this.image.height : this.dHeight
+      if(this.dHeight === null && this.image.height) {
+      	this.dHeight = this.image.height;
+      	this.dWidth = this.image.width;
+      }
+      if(this.hdHeight === null) {
+      	this.hdWidth = -this.dWidth / 2;
+      	this.hdHeight = -this.dHeight / 2;
+      }
+      var w = this.dWidth;
+      var h = this.dHeight;
+      //w /= cm[0];
+      //h /= cm[3];
+      var x = this.dX;
+      var y = this.dY;
+      if(this.centered === true) {
+      	x += this.hdWidth;
+        y += this.hdHeight;
+      }
+      
+      if (this.dWidth !== null) {
+        if (this.sWidth !== null) {
+          ctx.drawImage(this.rimage,
             this.sX, this.sY, this.sWidth, this.sHeight,
             x, y, w, h)
         } else {
-          ctx.drawImage(this.image, x, y, w, h)
+          ctx.drawImage(this.rimage, x, y, w, h)
         }
       } else {
         w = this.image.width
@@ -5997,7 +7588,7 @@ ImageNode = Klass(Drawable, {
           ctx.restore()
           ctx.beginPath()
         } else {
-          ctx.drawImage(this.image, x, y)
+          ctx.drawImage(this.rimage, x, y)
         }
       }
     } else {
@@ -6007,15 +7598,17 @@ ImageNode = Klass(Drawable, {
       var x = this.dX + (this.centered ? -w * 0.5 : 0)
       var y = this.dY + (this.centered ? -h * 0.5 : 0)
     }
-    ctx.rect(x, y, w, h)
+    //ctx.rect(x, y, w, h)
   },
 
   /**
-    Creates a bounding rectangle path for the image on the given drawing
-    context.
-
-    @param ctx Canvas drawing context.
-    */
+     * Creates a bounding rectangle path for the image on the given drawing
+     * context.
+     * 
+     * @private
+     * @param ctx
+     *            Canvas drawing context.
+     */
   drawPickingPath : function(ctx) {
     var x = this.dX + (this.centered ? -this.image.width * 0.5 : 0)
     var y = this.dY + (this.centered ? -this.image.height * 0.5 : 0)
@@ -6029,17 +7622,20 @@ ImageNode = Klass(Drawable, {
   },
 
   /**
-    Returns true if the point x,y is inside the image rectangle.
-
-    The x,y point is in user-space coordinates, meaning that e.g. the point
-    5,5 will always be inside the rectangle [0, 0, 10, 10], regardless of the
-    transform on the rectangle.
-
-    @param x X-coordinate of the point.
-    @param y Y-coordinate of the point.
-    @return Whether the point is inside the image rectangle.
-    @type boolean
-    */
+     * Returns true if the point x,y is inside the image rectangle.
+     * 
+     * The x,y point is in user-space coordinates, meaning that e.g. the point
+     * 5,5 will always be inside the rectangle [0, 0, 10, 10], regardless of the
+     * transform on the rectangle.
+     * 
+     * @private
+     * @param x
+     *            X-coordinate of the point.
+     * @param y
+     *            Y-coordinate of the point.
+     * @return Whether the point is inside the image rectangle.
+     * @type boolean
+     */
   isPointInPath : function(x,y) {
     x -= this.dX
     y -= this.dY
@@ -6057,21 +7653,23 @@ ImageNode = Klass(Drawable, {
   },
 
   getBoundingBox : function() {
-    x = this.dX
-    y = this.dY
-    if (this.centered) {
-      x -= this.image.width * 0.5
-      y -= this.image.height * 0.5
-    }
+    var x = this.dX
+    var y = this.dY
     var w = this.dWidth
     var h = this.dHeight
-    if (this.dWidth == null) {
+    if (this.dWidth == null && this.image) {
       w = this.image.width
       h = this.image.height
     }
+    if (this.centered) {
+      x -= w * 0.5
+      y -= h * 0.5
+    }
     return [x, y, w, h]
   }
-})
+};
+Profiler.wrap_class(ImageNode, "ImageNode");
+ImageNode.Extenze(Drawable);
 
 ImageNode.load = function(src) {
   var img = new Image();
@@ -6082,72 +7680,113 @@ ImageNode.load = function(src) {
 
 
 /**
-  TextNode is used for drawing text on a canvas.
+ * TextNode is used for drawing text on a canvas.
+ * 
+ * Attributes:
+ * 
+ * text - The text string to draw. align - Horizontal alignment for the text.
+ * 'left', 'right', 'center', 'start' or 'end' textBaseline - Baseline used for
+ * the text. 'top', 'hanging', 'middle', 'alphabetic', 'ideographic' or 'bottom'
+ * asPath - If true, creates a text path instead of drawing the text.
+ * pathGeometry - A geometry object the path of which the text follows.
+ * 
+ * Example:
+ * 
+ * var text = new TextGeometry('The cake is a lie.')
+ * 
+ * @constructor
+ * @extends Drawable
+ * 
+ * @param {string} text
+ *            The text string to draw.
+ * @param {TextNode} config
+ *            Optional config hash.
+ */
+function TextNode(text, config) {
+	TextNode.prototype.initialize.apply(this, arguments)
+}
 
-  Attributes:
-
-    text - The text string to draw.
-    align - Horizontal alignment for the text.
-            'left', 'right', 'center', 'start' or 'end'
-    baseline - Baseline used for the text.
-               'top', 'hanging', 'middle', 'alphabetic', 'ideographic' or 'bottom'
-    asPath - If true, creates a text path instead of drawing the text.
-    pathGeometry - A geometry object the path of which the text follows.
-
-  Example:
-
-    var text = new TextGeometry('The cake is a lie.')
-
-  @param text The text string to draw.
-  @param config Optional config hash.
-  */
-TextNode = Klass(Drawable, {
+TextNode.prototype = {
   text : 'Text',
-  align : 'start', // 'left' | 'right' | 'center' | 'start' | 'end'
-  baseline : 'alphabetic', // 'top' | 'hanging' | 'middle' | 'alphabetic' |
-                           // 'ideographic' | 'bottom'
+  lastText: null,
+  font: null,
+  align : null, // 'left' | 'right' | 'center' | 'start' | 'end'
   accuratePicking : false,
   asPath : false,
   pathGeometry : null,
   maxWidth : null,
+  fontSize: null,
+  fontFamily: null,
   width : 0,
   height : 20,
   cx : 0,
   cy : 0,
 
-  __drawMethodName : 'draw' + CanvasSupport.getTextBackend(),
-  __pickingMethodName : 'drawPickingPath' + CanvasSupport.getTextBackend(),
+  __drawMethod : void 0,
+  __pickingMethod : void 0,
+  __measureTextMethod : void 0,
 
-  initialize : function(text, config) {
-    this.lastText = this.text
-    this.text = text
-    Drawable.initialize.call(this, config)
+  /** @override */ initialize : function(text, config) {
+    this.lastText = this.text;
+    this.text = text;    
+    this.GLimg = null;    
+    this.imageMask = null;
+    this.needsImgTextUpdate = true;
+    Drawable.prototype.initialize.call(this, config);
+    
+    this['text'] = this.text;
+    
+    this.addEventListener('rootChanged', function(e) {
+    	if(this.root.isFake || !e.removeRoot) return;
+    	
+    	if(this.GLimg && this.root.useEGL) { //removing
+	  		gl.addAction(['_DELETE_TEXTURE', parseInt(this.GLimg)]);
+	  		this.GLimg = null;
+	  	}
+	  	
+	  	if(this.root.useWebgl && this.webGLImage) { //removing
+	  		e.removeRoot.gl.deleteTexture(this.webGLImage);
+	  		this.webGLImage = null;
+	  	}
+    });
   },
+  
+  
 
   drawGeometry : function(ctx) {
-    this.drawUsing(ctx, this.__drawMethodName)
+  	if (!this.text || this.text.length == 0)
+        return
+
+    var old = this.dimensions;
+    this.dimensions = this.measureText(ctx)
+
+    if(!this.dimensions || !old || this.dimensions.width != old.width) {
+        this.changed = true;
+        this.lastAABB = null;
+    }
+    //this.drawUsing(ctx, this.__drawMethodName)
+    this.__drawMethod(ctx);
   },
 
   drawPickingPath : function(ctx) {
-    this.drawUsing(ctx, this.__pickingMethodName)
+    //this.drawUsing(ctx, this.__pickingMethodName)
+    this.__pickingMethod(ctx);
   },
 
   drawUsing : function(ctx, methodName) {
-    if (!this.text || this.text.length == 0)
-      return
-    if (this.lastText != this.text || this.lastStyle != ctx.font) {
-      this.dimensions = this.measureText(ctx)
-      this.lastText = this.text
-      this.lastStyle = ctx.font
-    }
-    if (this[methodName])
-      this[methodName](ctx)
-  },
+		
+			this.lastText = this.text
+			this.lastStyle = ctx.font
+		//}
+		if (this[methodName])
+			this[methodName](ctx)
+	},
 
   measureText : function(ctx) {
-    var mn = 'measureText' + CanvasSupport.getTextBackend().capitalize()
-    if (this[mn]) {
-      return this[mn](ctx)
+    //var mn = 'measureText' + CanvasSupport.getTextBackend().capitalize()
+    var meth = this.__measureTextMethod;
+    if (this.__measureTextMethod) {
+      return this.__measureTextMethod(ctx)
     } else {
       return {width: 0, height: 0}
     }
@@ -6162,23 +7801,102 @@ TextNode = Klass(Drawable, {
       return  -this.dimensions.width * 0.5
   },
 
-  measureTextHTML5 : function(ctx) {
+  measureTextHTML5 : function(octx) {
+  	var ctx = octx;
+  	
+  	if(!octx) {
+	  	ctx = this.root.getContext();
+	    ctx.save();
+	    
+	    this.transform(ctx);
+	    ctx.setTransform(1,0,0,1,0,0);
+  	}
+  	
     // FIXME measureText is retarded
-    return {width: ctx.measureText(this.text).width, height: 20}
+    var size = 12;//this.scale;
+    
+    if(this.font) {
+        var parts = this.font.split(' ');
+        
+        if(parts[0].indexOf('px') != -1) {
+            var s = parts[0].substr(0, parts[0].length - 2);
+            //console.log(s);
+            s = Number(s);
+            
+            size = s;
+        }
+    } else if(this.fontSize)
+    	size = parseInt(this.fontSize);
+
+    this.actualTextHeight = size * 1;
+    /*
+    if (this.textAlign != null)
+      ctx.setTextAlign( this.textAlign )
+    if (this.textBaseline != null)
+      ctx.setTextBaseline( this.textBaseline )
+    if (this.font != null)
+      ctx.setFont( this.font )
+    */
+    
+    var ret = {width: ctx.measureText(this.text).width, height: size + 3};
+    
+    if(!octx)
+    	ctx.restore();
+    
+    return ret;
   },
 
   drawHTML5 : function(ctx) {
-    ctx.fillText(this.text, this.cx, this.cy, this.maxWidth)
+  	
+    var x = this.cx + this.computeXForAlign();
+    var y = this.cy + 1.4;
+    ctx.fillText(this.text, x, y);//, this.maxWidth);
   },
 
   drawPickingPathHTML5 : function(ctx) {
+  	this.dimensions = this.measureText(ctx);
     var ascender = 15 // this.dimensions.ascender
     var ry = this.cy - ascender
     ctx.rect(this.cx, ry, this.dimensions.width, this.dimensions.height)
   },
+  
+  getBoundingBox : function() {
+  	//this.dimensions = this.measureText(null);
+
+    if(!this.dimensions || ! this.dimensions.width) 
+    	this.dimensions = this.measureText(null);
+
+    if(!this.dimensions) return [0, 0, 0, 0];
+
+    var ascender = this.actualTextHeight * 0.5;
+    var ep = this.actualTextHeight * this.actualTextHeight / 50;
+    var ry = this.cy - ascender
+    var x = this.cx + this.computeXForAlign()
+    
+    var hoff = 0;
+    var out = [x - ep, ry, this.dimensions.width + ep * 2, this.dimensions.height];
+    
+    switch(this.textBaseline) {
+    	case 'top':
+    		hoff = -0.5 * out[3];
+    		break;
+    	case 'bottom':
+    		hoff = 0.5 * out[3];
+    		break;
+    	case 'alphabetic':
+    		hoff = 0.25 * out[3];
+    		break;
+    	case 'middle':
+    	default:
+    }
+    
+    out[1] -= hoff;
+
+    return out;
+  },
 
   measureTextMozText : function(ctx) {
-    return {width: ctx.mozMeasureText(this.text), height: 20}
+    return {width: ctx.mozMeasureText(this.text), height: 20 / this.scale}
   },
 
   drawMozText : function(ctx) {
@@ -6198,7 +7916,7 @@ TextNode = Klass(Drawable, {
       ctx.restore()
     }
   },
-
+  
   drawPickingPathMozText : function(ctx) {
     var x = this.cx + this.computeXForAlign()
     var y = this.cy + 0
@@ -6256,49 +7974,61 @@ TextNode = Klass(Drawable, {
       }
     }
   }
-})
+};
+switch(CanvasSupport.getTextBackend()) {
+    case 'HTML5':
+       TextNode.prototype.__drawMethod = TextNode.prototype.drawHTML5;
+       TextNode.prototype.__pickingMethod = TextNode.prototype.drawPickingPathHTML5;
+       TextNode.prototype.__measureTextMethod = TextNode.prototype.measureTextHTML5;
+       break;
+    case 'MozText':
+       TextNode.prototype.__drawMethod = TextNode.prototype.drawMozText;
+       TextNode.prototype.__pickingMethod = TextNode.prototype.drawPickingPathMozText;
+       TextNode.prototype.__measureTextMethod = TextNode.prototype.measureTextMozText;
+       break;
+    default:
+        throw new Error("No draw function for " + CanvasSupport.getTextBackend());
+}
+Profiler.wrap_class(TextNode, "TextNode");
+TextNode.Extenze(Drawable);
 
 
 /**
-  Gradient is a linear or radial color gradient that can be used as a
-  strokeStyle or fillStyle.
-
-  Attributes:
-
-    type - Type of the gradient. 'linear' or 'radial'
-    startX, startY - Coordinates for the starting point of the gradient.
-                     Center of the starting circle of a radial gradient.
-                     Default is 0, 0.
-    endX, endY - Coordinates for the ending point of the gradient.
-                 Center of the ending circle of a radial gradient.
-                 Default is 0, 0.
-    startRadius - The radius of the starting circle of a radial gradient.
-                  Default is 0.
-    endRadius - The radius of the ending circle of a radial gradient.
-                Default is 100.
-    colorStops - The color stops for the gradient. The format for the color
-                 stops is: [[position_1, color_1], [position_2, color_2], ...].
-                 The possible color formats are: 'red', '#000', '#000000',
-                 'rgba(0,0,0, 0.2)', [0,0,0] and [0,0,0, 0.2].
-                 Default color stops are [[0, '#000000'], [1, '#FFFFFF']].
-
-  Example:
-
-    var g = new Gradient({
-      type : 'radial',
-      endRadius : 40,
-      colorStops : [
-        [0, '#000'],
-        [0.2, '#ffffff'],
-        [0.5, [255, 0, 0]],
-        [0.8, [0, 255, 255, 0.5]],
-        [1.0, 'rgba(255, 0, 255, 0.8)']
-      ]
-    })
-
-  @param config Optional config hash.
-  */
-Gradient = Klass({
+ * Gradient is a linear or radial color gradient that can be used as a
+ * strokeStyle or fillStyle.
+ * 
+ * Example:
+ * 
+ * var g = new Gradient({ type : 'radial', endRadius : 40, colorStops : [ [0,
+ * '#000'], [0.2, '#ffffff'], [0.5, [255, 0, 0]], [0.8, [0, 255, 255, 0.5]],
+ * [1.0, 'rgba(255, 0, 255, 0.8)'] ] })
+ * 
+ * @constructor
+ * @property {String} type Type of the gradient, 'linear' or 'radial'.
+ * @param config
+ *      Object of properties to be set on initialization.
+ * @property {Number} startX
+ * @property {Number} startY Coordinates for the starting point of the gradient. Center of the starting
+ *      circle of a radial gradient. Default is 0, 0.
+ * @property {Number} endX
+ * @property {Number} endY Coordinates for
+ *      the ending point of the gradient. Center of the ending circle of a radial
+ *      gradient. Default is 0, 0.
+ * @property {Number} startRadius The radius of the starting circle of
+ *      a radial gradient. Default is 0.
+ * @property {Number} endRadius The radius of the ending circle
+ *      of a radial gradient. Default is 100.
+ * @property {Number} colorStops The color stops for the
+ *      gradient. The format for the color stops is: [[position_1, color_1],
+ *      [position_2, color_2], ...]. The possible color formats are: 'red', '#000',
+ *      '#000000', 'rgba(0,0,0, 0.2)', [0,0,0] and [0,0,0, 0.2]. Default color stops
+ *      are [[0, '#000000'], [1, '#FFFFFF']].
+ */
+//Gradient = Klass({
+function Gradient() {
+	Gradient.prototype.initialize.apply(this, arguments);
+}
+Gradient.prototype = {
   type : 'linear',
   isPattern : true,
   startX : 0,
@@ -6309,19 +8039,19 @@ Gradient = Klass({
   endRadius : 1,
   colorStops : [],
 
-  initialize : function(config) {
+  /** @override */ initialize : function(config) {
     this.colorStops = [[0, '#000000'], [1, '#FFFFFF']]
     if (config) Object.extend(this, config)
   },
 
   /**
-    Compiles the gradient using the given drawing context.
-    Returns a gradient object that can be used as drawing context
-    fill/strokeStyle.
-
-    @param ctx Drawing context to compile pattern on.
-    @return Gradient object.
-    */
+     * Compiles the gradient using the given drawing context. Returns a gradient
+     * object that can be used as drawing context fill/strokeStyle.
+     * 
+     * @param ctx
+     *            Drawing context to compile pattern on.
+     * @return Gradient object.
+     */
   compile : function(ctx) {
     if (this.type == 'linear') {
       var go = ctx.createLinearGradient(
@@ -6343,7 +8073,7 @@ Gradient = Klass({
         go.addColorStop(cs[0], g)
       }
     }
-    Object.extend(go, Transformable.prototype)
+    Object.extend(go, Transformable)
     go.transformList = this.transformList
     go.scale = this.scale
     go.x = this.x
@@ -6355,44 +8085,55 @@ Gradient = Klass({
       this.compiled = go
     return go
   }
-})
+};
 
 
 /**
-  Pattern is a possibly repeating image that can be used as a strokeStyle or
-  fillStyle.
-
-    var image = new Image()
-    image.src = 'foo.jpg'
-    var pattern = new Pattern(image, 'no-repeat')
-    var rect = new Rectangle(200, 200, {fill: true, fillStyle: pattern})
-
-  @param image The image object for the pattern. IMG and CANVAS elements, and
-               Image objects all work.
-  @param repeat The repeat mode of the pattern. One of 'repeat', 'repeat-y',
-                'repeat-x' and 'no-repeat'. The default is 'repeat'.
-  */
-Pattern = Klass({
+ * Pattern is a possibly repeating image that can be used as a strokeStyle or
+ * fillStyle.
+ * 
+ * var image = new Image() image.src = 'foo.jpg' var pattern = new
+ * Pattern(image, 'no-repeat') var rect = new Rectangle(200, 200, {fill: true,
+ * fillStyle: pattern})
+ * 
+ * @constructor
+ * @param image
+ *            The image object for the pattern. IMG and CANVAS elements, and
+ *            Image objects all work.
+ * @param repeat
+ *            The repeat mode of the pattern. One of 'repeat', 'repeat-y',
+ *            'repeat-x' and 'no-repeat'. The default is 'repeat'.
+ * 
+ * @property repeat
+ *            The repeat mode of the pattern. One of 'repeat', 'repeat-y',
+ *            'repeat-x' and 'no-repeat'. The default is 'repeat'.
+ */
+//Pattern = Klass({
+function Pattern() {
+	Pattern.prototype.initialize.apply(this, arguments);
+}
+Pattern.prototype = {
   isPattern : true,
   repeat: 'repeat',
 
-  initialize : function(image, repeat) {
-    this.image = image
-    if (repeat)
-      this.repeat = repeat
+  /** @override */ initialize : function(image, repeat) {
+    this.image = image.real || image;
+    if (repeat) {
+      this.repeat = repeat;
+    }
   },
 
   /**
-    Compiles the pattern using the given drawing context.
-    Returns a pattern object that can be used as drawing context
-    fill/strokeStyle.
-
-    @param ctx Drawing context to compile pattern on.
-    @return Pattern object.
-    */
+     * Compiles the pattern using the given drawing context. Returns a pattern
+     * object that can be used as drawing context fill/strokeStyle.
+     * 
+     * @param ctx
+     *            Drawing context to compile pattern on.
+     * @return Pattern object.
+     */
   compile : function(ctx) {
     var pat = ctx.createPattern(this.image, this.repeat)
-    Object.extend(pat, Transformable.prototype)
+    Object.extend(pat, Transformable)
     pat.transformList = this.transformList
     pat.scale = this.scale
     pat.x = this.x
@@ -6404,7 +8145,7 @@ Pattern = Klass({
       this.compiled = pat
     return pat
   }
-})
+};
 
 
 
@@ -6418,72 +8159,54 @@ Pattern = Klass({
 
 
 /**
-  SVG parser for simple documents. Converts SVG DOM to CAKE scenegraph.
-  Emphasis on graphical images, not on the "HTML-killer" features of SVG.
-
-  var svgNode = SVGParser.parse(
-    svgRootElement, filename, containerWidth, containerHeight, fontSize
-  )
-
-  Features:
-    * <svg> width and height, viewBox clipping.
-    * Clipping (objectBoundingBox clipping too)
-    * Paths, rectangles, ellipses, circles, lines, polylines and polygons
-    * Simple untransformed text using HTML
-    * Nested transforms
-    * Transform lists (transform="rotate(30) translate(2,2) scale(4)")
-    * Gradient and pattern transforms
-    * Strokes with miter, joins and caps
-    * Flat fills and gradient fills, ditto for strokes
-    * Parsing simple stylesheets (tag, class or id)
-    * Images
-    * Non-pixel units (cm, mm, in, pt, pc, em, ex, %)
-    * <use>-tags
-    * preserveAspectRatio
-    * Dynamic gradient sizes (objectBoundingBox, etc.)
-    * Markers (though buggy)
-
-  Some of the several missing features:
-    * Masks
-    * Patterns
-    * viewBox clipping for elements other than <marker> and <svg>
-    * Text styling
-    * tspan, tref, textPath, many things text
-    * Fancy style rules (tag .class + #foo > bob#alice { ... })
-    * Filters
-    * Animation
-    * Dashed strokes
-  */
+ * SVG parser for simple documents. Converts SVG DOM to CAKE scenegraph.
+ * Emphasis on graphical images, not on the "HTML-killer" features of SVG.
+ * 
+ * var svgNode = SVGParser.parse( svgRootElement, filename, containerWidth,
+ * containerHeight, fontSize )
+ * 
+ * Features: <svg> width and height, viewBox clipping. Clipping
+ * (objectBoundingBox clipping too) Paths, rectangles, ellipses, circles, lines,
+ * polylines and polygons Simple untransformed text using HTML Nested transforms
+ * Transform lists (transform="rotate(30) translate(2,2) scale(4)") Gradient and
+ * pattern transforms Strokes with miter, joins and caps Flat fills and gradient
+ * fills, ditto for strokes Parsing simple stylesheets (tag, class or id) Images
+ * Non-pixel units (cm, mm, in, pt, pc, em, ex, %) <use>-tags
+ * preserveAspectRatio Dynamic gradient sizes (objectBoundingBox, etc.) Markers
+ * (though buggy)
+ * 
+ * Some of the several missing features: Masks Patterns viewBox clipping for
+ * elements other than <marker> and <svg> Text styling tspan, tref, textPath,
+ * many things text Fancy style rules (tag .class + #foo > bob#alice { ... })
+ * Filters Animation Dashed strokes
+ */
 SVGParser = {
   /**
-    Loads an SVG document using XMLHttpRequest and calls the given onSuccess
-    callback with the parsed document. If loading fails, calls onFailure
-    instead if one is given. When loading and an onLoading callback is given,
-    calls onLoading every time xhr.readyState is 3.
-
-    The callbacks will be called with the following parameters:
-
-    onSuccess(svgNode, xmlHttpRequest,
-      filename, config)
-
-    onFailure(xmlHttpRequest, possibleException,
-      filename, config)
-
-    onLoading(xmlHttpRequest,
-      filename, config)
-
-    Config hash parameters:
-      filename: Filename for the SVG document. Used for parsing image paths.
-      width: Width of the bounding box to fit the SVG in.
-      height: Height of the bounding box to fit the SVG in.
-      fontSize: Default font size for the SVG document.
-      onSuccess: Function to call on successful load. Required.
-      onFailure: Function to call on failed load.
-      onLoading: Function to call while loading.
-
-    @param config The config hash.
-    @param filename The URL of the SVG document to load. Must conform to SOP.
-    */
+     * Loads an SVG document using XMLHttpRequest and calls the given onSuccess
+     * callback with the parsed document. If loading fails, calls onFailure
+     * instead if one is given. When loading and an onLoading callback is given,
+     * calls onLoading every time xhr.readyState is 3.
+     * 
+     * The callbacks will be called with the following parameters:
+     * 
+     * onSuccess(svgNode, xmlHttpRequest, filename, config)
+     * 
+     * onFailure(xmlHttpRequest, possibleException, filename, config)
+     * 
+     * onLoading(xmlHttpRequest, filename, config)
+     * 
+     * Config hash parameters: filename: Filename for the SVG document. Used for
+     * parsing image paths. width: Width of the bounding box to fit the SVG in.
+     * height: Height of the bounding box to fit the SVG in. fontSize: Default
+     * font size for the SVG document. onSuccess: Function to call on successful
+     * load. Required. onFailure: Function to call on failed load. onLoading:
+     * Function to call while loading.
+     * 
+     * @param config
+     *            Object of properties to be set on initialization.
+     * @param filename
+     *            The URL of the SVG document to load. Must conform to SOP.
+     */
   load : function(filename, config) {
     if (!config.onSuccess) throw("Need to provide an onSuccess function.")
     if (!config.filename)
@@ -6527,20 +8250,22 @@ SVGParser = {
   },
 
   /**
-    Parses an SVG DOM into CAKE scenegraph.
-
-    Config hash parameters:
-      filename: Filename for the SVG document. Used for parsing image paths.
-      width: Width of the bounding box to fit the SVG in.
-      height: Height of the bounding box to fit the SVG in.
-      fontSize: Default font size for the SVG document.
-      currentColor: HTML text color of the containing element.
-
-    @param svgRootElement The root element of the SVG DOM.
-    @param config The config hash.
-    @returns The root CanvasNode of the scenegraph created from the SVG document.
-    @type CanvasNode
-    */
+     * Parses an SVG DOM into CAKE scenegraph.
+     * 
+     * Config hash parameters: filename: Filename for the SVG document. Used for
+     * parsing image paths. width: Width of the bounding box to fit the SVG in.
+     * height: Height of the bounding box to fit the SVG in. fontSize: Default
+     * font size for the SVG document. currentColor: HTML text color of the
+     * containing element.
+     * 
+     * @param svgRootElement
+     *            The root element of the SVG DOM.
+     * @param config
+     *            Object of properties to be set on initialization.
+     * @returns The root CanvasNode of the scenegraph created from the SVG
+     *          document.
+     * @type CanvasNode
+     */
   parse : function(svgRootElement, config) {
     var n = new CanvasNode()
     var w = config.width, h = config.height, fs = config.fontSize
